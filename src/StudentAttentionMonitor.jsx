@@ -19,6 +19,11 @@ const INITIAL_LEARNER = {
 const INITIAL_UI = {
   attention: 0,
   topEmotion: "Neutral",
+  brightness: 0,
+  lightingStatus: "checking...",
+  lightingSuggestion: "Checking lighting...",
+  showLightingPopup: false,
+
   fps: "fps: --",
   learner: INITIAL_LEARNER,
   gestureLevels: { raiseHand: 0, agree: 0, disagree: 0 },
@@ -100,7 +105,10 @@ function headTiltDegFromEyes(faceLM) {
 
 function chinPoint(faceLM) {
   if (!faceLM?.length) return { x: 0.5, y: 0.9 };
-  return faceLM[152] || faceLM[Math.floor(faceLM.length * 0.95)] || { x: 0.5, y: 0.9 };
+  return (
+    faceLM[152] ||
+    faceLM[Math.floor(faceLM.length * 0.95)] || { x: 0.5, y: 0.9 }
+  );
 }
 
 function mouthCenter(faceLM) {
@@ -124,7 +132,11 @@ function mouthCenter(faceLM) {
 }
 
 function cheekPoints(faceLM) {
-  if (!faceLM?.length) return [{ x: 0.35, y: 0.55 }, { x: 0.65, y: 0.55 }];
+  if (!faceLM?.length)
+    return [
+      { x: 0.35, y: 0.55 },
+      { x: 0.65, y: 0.55 },
+    ];
   return [
     faceLM[234] || faceLM[Math.floor(faceLM.length * 0.4)] || faceLM[0],
     faceLM[454] || faceLM[Math.floor(faceLM.length * 0.6)] || faceLM[0],
@@ -141,7 +153,9 @@ function headOrientationPenalty(yawDeg = 0, pitchDeg = 0) {
   const pyaw = clamp((Math.abs(yawDeg) - yawSoft) / (yawHard - yawSoft));
   let ppitch = 0;
   if (pitchDeg < -pitchDown) {
-    ppitch = clamp((Math.abs(pitchDeg) - pitchDown) / (pitchDownSoft - pitchDown));
+    ppitch = clamp(
+      (Math.abs(pitchDeg) - pitchDown) / (pitchDownSoft - pitchDown),
+    );
   } else if (pitchDeg > pitchUpSoft) {
     ppitch = clamp((pitchDeg - pitchUpSoft) / (pitchUpHard - pitchUpSoft));
   }
@@ -149,12 +163,16 @@ function headOrientationPenalty(yawDeg = 0, pitchDeg = 0) {
 }
 
 function computeAttention(blend, yawDeg = 0, pitchDeg = 0) {
-  const eyesOpen = 1 - (bs(blend, "eyeBlinkLeft") + bs(blend, "eyeBlinkRight")) / 2;
-  const gazeLeft = (bs(blend, "eyeLookInLeft") + bs(blend, "eyeLookOutRight")) / 2;
-  const gazeRight = (bs(blend, "eyeLookOutLeft") + bs(blend, "eyeLookInRight")) / 2;
+  const eyesOpen =
+    1 - (bs(blend, "eyeBlinkLeft") + bs(blend, "eyeBlinkRight")) / 2;
+  const gazeLeft =
+    (bs(blend, "eyeLookInLeft") + bs(blend, "eyeLookOutRight")) / 2;
+  const gazeRight =
+    (bs(blend, "eyeLookOutLeft") + bs(blend, "eyeLookInRight")) / 2;
   const gazeHoriz = Math.max(gazeLeft, gazeRight);
   const gazeUp = (bs(blend, "eyeLookUpLeft") + bs(blend, "eyeLookUpRight")) / 2;
-  const gazeDown = (bs(blend, "eyeLookDownLeft") + bs(blend, "eyeLookDownRight")) / 2;
+  const gazeDown =
+    (bs(blend, "eyeLookDownLeft") + bs(blend, "eyeLookDownRight")) / 2;
   const gazeUpPenalty = clamp((gazeUp - 0.05) / 0.3);
   const gazeDownPenalty = clamp((gazeDown - 0.25) / 0.5);
   const gazeHorizPenalty = clamp((gazeHoriz - 0.08) / 0.35);
@@ -178,7 +196,9 @@ function recentVariance(list) {
   if (!list.length) return 0;
   const values = list.map((item) => item.v);
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  return values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return (
+    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length
+  );
 }
 
 function pushAttention(runtime, score) {
@@ -195,13 +215,17 @@ function getAggregatedAttention(runtime, currentScore) {
     weightedSum += item.score * weight;
     totalWeight += weight;
   }
-  const historicalAvg = totalWeight > 0 ? weightedSum / totalWeight : currentScore;
+  const historicalAvg =
+    totalWeight > 0 ? weightedSum / totalWeight : currentScore;
   const scores = runtime.attnHist.map((item) => item.score);
   const mean = scores.reduce((sum, value) => sum + value, 0) / scores.length;
-  const variance = scores.reduce((sum, value) => sum + (value - mean) ** 2, 0) / scores.length;
+  const variance =
+    scores.reduce((sum, value) => sum + (value - mean) ** 2, 0) / scores.length;
   const consistencyFactor = clamp(1 - Math.sqrt(variance) / 0.25);
   const currentWeight = 0.3 + 0.4 * consistencyFactor;
-  return clamp(currentWeight * currentScore + (1 - currentWeight) * historicalAvg);
+  return clamp(
+    currentWeight * currentScore + (1 - currentWeight) * historicalAvg,
+  );
 }
 
 function pushLearnerStates(runtime, states) {
@@ -238,7 +262,9 @@ function recentChangeDeg(runtime, key) {
   if (runtime.headHist.length < 2) return 0;
   let total = 0;
   for (let index = 1; index < runtime.headHist.length; index += 1) {
-    total += Math.abs(runtime.headHist[index][key] - runtime.headHist[index - 1][key]);
+    total += Math.abs(
+      runtime.headHist[index][key] - runtime.headHist[index - 1][key],
+    );
   }
   return total;
 }
@@ -256,14 +282,21 @@ function updateBlinkRate(runtime, blend) {
 
 function isValidHand(lms) {
   if (!lms || lms.length < 21) return false;
-  if (!lms[0] || !lms[4] || !lms[8] || !lms[12] || !lms[16] || !lms[20]) return false;
+  if (!lms[0] || !lms[4] || !lms[8] || !lms[12] || !lms[16] || !lms[20])
+    return false;
   const wrist = lms[0];
   const middleTip = lms[12];
   const handSize = dist(wrist, middleTip);
   if (handSize < 0.05) return false;
   let inBounds = 0;
   for (const point of lms) {
-    if (point && point.x >= -0.1 && point.x <= 1.1 && point.y >= -0.1 && point.y <= 1.1) {
+    if (
+      point &&
+      point.x >= -0.1 &&
+      point.x <= 1.1 &&
+      point.y >= -0.1 &&
+      point.y <= 1.1
+    ) {
       inBounds += 1;
     }
   }
@@ -273,7 +306,11 @@ function isValidHand(lms) {
   const palmSize = dist(wrist, palm);
   if (palmSize < 0.02 || palmSize > 0.3) return false;
   const avgFingerDist =
-    (dist(lms[8], palm) + dist(lms[12], palm) + dist(lms[16], palm) + dist(lms[20], palm)) / 4;
+    (dist(lms[8], palm) +
+      dist(lms[12], palm) +
+      dist(lms[16], palm) +
+      dist(lms[20], palm)) /
+    4;
   return avgFingerDist >= palmSize * 0.2 && avgFingerDist <= palmSize * 5;
 }
 
@@ -306,8 +343,12 @@ function thumbGestureScoresFromLandmarks(lms) {
   const scale = clamp(palm, 0.12, 0.28);
   const orientUp = clamp(-dy / scale);
   const orientDown = clamp(dy / scale);
-  const up = clamp(0.45 * othersCurled + 0.25 * thumbExt + orientUp - 0.05 * orientDown);
-  let down = clamp(0.4 * othersCurled + 0.25 * thumbExt + 1.15 * orientDown - 0.05 * orientUp);
+  const up = clamp(
+    0.45 * othersCurled + 0.25 * thumbExt + orientUp - 0.05 * orientDown,
+  );
+  let down = clamp(
+    0.4 * othersCurled + 0.25 * thumbExt + 1.15 * orientDown - 0.05 * orientUp,
+  );
   if (orientDown > 0.6) down = clamp(down + 0.08);
   return { up, down };
 }
@@ -337,11 +378,17 @@ function raiseHandScoreFromLandmarks(lms) {
   const avgFingerTipY = (lms[8].y + lms[12].y + lms[16].y + lms[20].y) / 4;
   const handRaised = clamp((wrist.y - avgFingerTipY) / 0.2);
   const avgFingerTipX = (lms[8].x + lms[12].x + lms[16].x + lms[20].x) / 4;
-  const palmCenterX = (lms[0].x + lms[5].x + lms[9].x + lms[13].x + lms[17].x) / 5;
-  const verticalOriented = clamp(1 - Math.abs(avgFingerTipX - palmCenterX) / 0.15);
+  const palmCenterX =
+    (lms[0].x + lms[5].x + lms[9].x + lms[13].x + lms[17].x) / 5;
+  const verticalOriented = clamp(
+    1 - Math.abs(avgFingerTipX - palmCenterX) / 0.15,
+  );
   const centeredness = clamp(1 - Math.abs(palmCenterX - 0.5) / 0.3);
   return clamp(
-    0.4 * fingersExtended + 0.35 * handRaised + 0.15 * verticalOriented + 0.1 * centeredness,
+    0.4 * fingersExtended +
+      0.35 * handRaised +
+      0.15 * verticalOriented +
+      0.1 * centeredness,
   );
 }
 
@@ -376,10 +423,18 @@ function exclusiveHandGestures(raiseHandRaw, thumbUpRaw, thumbDownRaw) {
   let thumbDown = clamp(thumbDownRaw);
   const max = Math.max(raiseHand, thumbUp, thumbDown);
   if (max > 0.6) {
-    if (raiseHand === max && raiseHand - thumbUp > 0.15 && raiseHand - thumbDown > 0.15) {
+    if (
+      raiseHand === max &&
+      raiseHand - thumbUp > 0.15 &&
+      raiseHand - thumbDown > 0.15
+    ) {
       thumbUp = 0;
       thumbDown = 0;
-    } else if (thumbUp === max && thumbUp - raiseHand > 0.15 && thumbUp - thumbDown > 0.15) {
+    } else if (
+      thumbUp === max &&
+      thumbUp - raiseHand > 0.15 &&
+      thumbUp - thumbDown > 0.15
+    ) {
       raiseHand = 0;
       thumbDown = 0;
     } else if (
@@ -396,7 +451,11 @@ function exclusiveHandGestures(raiseHandRaw, thumbUpRaw, thumbDownRaw) {
       thumbDown = (thumbDown / sum) * Math.min(sum, 0.4);
     }
   }
-  return { raiseHand: clamp(raiseHand), thumbUp: clamp(thumbUp), thumbDown: clamp(thumbDown) };
+  return {
+    raiseHand: clamp(raiseHand),
+    thumbUp: clamp(thumbUp),
+    thumbDown: clamp(thumbDown),
+  };
 }
 
 function exclusiveThinkingBored(thinkingRaw, boredRaw) {
@@ -424,13 +483,28 @@ function minHandDistanceToPoint(hands, point) {
   return best;
 }
 
-function learnerStatesFromSignals(runtime, blend, attn, headPoseAvailable, faceLM = null, handsLM = null) {
+function learnerStatesFromSignals(
+  runtime,
+  blend,
+  attn,
+  headPoseAvailable,
+  faceLM = null,
+  handsLM = null,
+) {
   const get = (name) => bs(blend, name);
   const blinkRate = updateBlinkRate(runtime, blend);
   const gazeHoriz =
-    (get("eyeLookInLeft") + get("eyeLookOutLeft") + get("eyeLookInRight") + get("eyeLookOutRight")) / 4;
+    (get("eyeLookInLeft") +
+      get("eyeLookOutLeft") +
+      get("eyeLookInRight") +
+      get("eyeLookOutRight")) /
+    4;
   const gazeVert =
-    (get("eyeLookUpLeft") + get("eyeLookUpRight") + get("eyeLookDownLeft") + get("eyeLookDownRight")) / 4;
+    (get("eyeLookUpLeft") +
+      get("eyeLookUpRight") +
+      get("eyeLookDownLeft") +
+      get("eyeLookDownRight")) /
+    4;
   const gazeAway = clamp((Math.max(gazeHoriz, gazeVert) - 0.15) / 0.85);
   pushTimedValue(runtime.gazeHist, { t: performance.now(), v: gazeAway }, 1500);
   const gazeVar = recentVariance(runtime.gazeHist);
@@ -444,10 +518,16 @@ function learnerStatesFromSignals(runtime, blend, attn, headPoseAvailable, faceL
   );
   const squint = clamp((get("eyeSquintLeft") + get("eyeSquintRight")) / 2);
   const jawOpen = clamp(get("jawOpen"));
-  const mildParted = clamp(((jawOpen - 0.12) / 0.25) * (1 - clamp((jawOpen - 0.5) / 0.4)));
+  const mildParted = clamp(
+    ((jawOpen - 0.12) / 0.25) * (1 - clamp((jawOpen - 0.5) / 0.4)),
+  );
   const mouthDown = clamp((get("mouthFrownLeft") + get("mouthFrownRight")) / 2);
-  const headTiltScore = clamp((Math.max(0, Math.abs(headTiltDegFromEyes(faceLM || [])) - 3)) / 22);
-  const handToChin = clamp((0.12 - minHandDistanceToPoint(handsLM, chinPoint(faceLM || []))) / 0.12);
+  const headTiltScore = clamp(
+    Math.max(0, Math.abs(headTiltDegFromEyes(faceLM || [])) - 3) / 22,
+  );
+  const handToChin = clamp(
+    (0.12 - minHandDistanceToPoint(handsLM, chinPoint(faceLM || []))) / 0.12,
+  );
   const confusionCore = clamp(
     0.22 * furrow +
       0.18 * innerRaise +
@@ -458,16 +538,24 @@ function learnerStatesFromSignals(runtime, blend, attn, headPoseAvailable, faceL
       0.1 * headTiltScore +
       0.08 * handToChin,
   );
-  const nodScore = headPoseAvailable ? clamp(recentChangeDeg(runtime, "pitch") / 90) : 0;
-  const shakeScore = headPoseAvailable ? clamp(recentChangeDeg(runtime, "yaw") / 90) : 0;
-  const droop = clamp(((1 - eyesOpen) - 0.35) / 0.35);
+  const nodScore = headPoseAvailable
+    ? clamp(recentChangeDeg(runtime, "pitch") / 90)
+    : 0;
+  const shakeScore = headPoseAvailable
+    ? clamp(recentChangeDeg(runtime, "yaw") / 90)
+    : 0;
+  const droop = clamp((1 - eyesOpen - 0.35) / 0.35);
   const yawn = clamp(get("jawOpen"));
   const frown = clamp((get("mouthFrownLeft") + get("mouthFrownRight")) / 2);
   const press = clamp((get("mouthPressLeft") + get("mouthPressRight")) / 2);
-  const eyeRoll = clamp((get("eyeLookUpLeft") + get("eyeLookUpRight")) / 2 - 0.3);
+  const eyeRoll = clamp(
+    (get("eyeLookUpLeft") + get("eyeLookUpRight")) / 2 - 0.3,
+  );
   const mouth = mouthCenter(faceLM || []);
   const cheeks = cheekPoints(faceLM || []);
-  const coverMouth = clamp((0.1 - minHandDistanceToPoint(handsLM, mouth)) / 0.1);
+  const coverMouth = clamp(
+    (0.1 - minHandDistanceToPoint(handsLM, mouth)) / 0.1,
+  );
   const headRest = clamp(
     (0.12 -
       Math.min(
@@ -477,8 +565,9 @@ function learnerStatesFromSignals(runtime, blend, attn, headPoseAvailable, faceL
       0.12,
   );
   const avoidEye = clamp((Math.max(gazeHoriz, gazeVert) - 0.15) / 0.85);
-  const flatStare = clamp((0.008 - gazeVar) / 0.008) * clamp((8 - blinkRate) / 8);
-  const lowAttnPenalty = clamp(((1 - attn) - 0.35) / 0.5);
+  const flatStare =
+    clamp((0.008 - gazeVar) / 0.008) * clamp((8 - blinkRate) / 8);
+  const lowAttnPenalty = clamp((1 - attn - 0.35) / 0.5);
   const boredComposite = clamp(
     0.18 * lowAttnPenalty +
       0.24 * avoidEye +
@@ -495,11 +584,19 @@ function learnerStatesFromSignals(runtime, blend, attn, headPoseAvailable, faceL
       0.3 * ((get("browDownLeft") + get("browDownRight")) / 2) +
       0.25 * ((get("noseSneerLeft") + get("noseSneerRight")) / 2),
   );
-  const confusion = clamp(confusionCore * (1 - 0.3 * angerProto) * (1 - 0.35 * boredComposite));
-  const thinking = clamp(
-    0.5 * attn + 0.2 * (1 - avoidEye) + 0.15 * press + 0.1 * handToChin + 0.05 * headTiltScore,
+  const confusion = clamp(
+    confusionCore * (1 - 0.3 * angerProto) * (1 - 0.35 * boredComposite),
   );
-  const surprised = clamp(get("jawOpen") + 0.5 * ((get("eyeWideLeft") + get("eyeWideRight")) / 2));
+  const thinking = clamp(
+    0.5 * attn +
+      0.2 * (1 - avoidEye) +
+      0.15 * press +
+      0.1 * handToChin +
+      0.05 * headTiltScore,
+  );
+  const surprised = clamp(
+    get("jawOpen") + 0.5 * ((get("eyeWideLeft") + get("eyeWideRight")) / 2),
+  );
   const tb = exclusiveThinkingBored(thinking, boredComposite);
   const scores = {
     Agreeing: nodScore,
@@ -534,7 +631,8 @@ function drawFace(ctx, canvas, landmarks) {
   ctx.fillStyle = "rgba(56,189,248,0.4)";
   for (const point of landmarks) {
     ctx.beginPath();
-    ctx.arc(point.x * canvas.width, point.y * canvas.height, 1, 0, Math.PI * 2);
+    ctx.arc( point.x * canvas.clientWidth,
+  point.y * canvas.clientHeight, 1, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -574,13 +672,20 @@ function drawFace(ctx, canvas, landmarks) {
     if (!point) continue;
     ctx.fillStyle = keyPoint.color;
     ctx.beginPath();
-    ctx.arc(point.x * canvas.width, point.y * canvas.height, keyPoint.size, 0, Math.PI * 2);
+    ctx.arc(
+      point.x * canvas.clientWidth,
+  point.y * canvas.clientHeight,
+      keyPoint.size,
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
   }
 
   const faceOval = [
-    10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377,
-    152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
+    10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379,
+    378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127,
+    162, 21, 54, 103, 67, 109,
   ];
   ctx.strokeStyle = "rgba(168,85,247,0.3)";
   ctx.lineWidth = 1;
@@ -588,8 +693,11 @@ function drawFace(ctx, canvas, landmarks) {
   for (let index = 0; index < faceOval.length; index += 1) {
     const point = landmarks[faceOval[index]];
     if (!point) continue;
-    if (index === 0) ctx.moveTo(point.x * canvas.width, point.y * canvas.height);
-    else ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
+    if (index === 0)
+      ctx.moveTo(point.x * canvas.clientWidth,
+  point.y * canvas.clientHeight);
+    else ctx.lineTo(point.x * canvas.clientWidth,
+  point.y * canvas.clientHeight);
   }
   ctx.closePath();
   ctx.stroke();
@@ -599,12 +707,29 @@ function drawHands(ctx, canvas, hands) {
   if (!hands?.length) return;
   ctx.save();
   const connections = [
-    [0, 1], [1, 2], [2, 3], [3, 4],
-    [0, 5], [5, 6], [6, 7], [7, 8],
-    [0, 9], [9, 10], [10, 11], [11, 12],
-    [0, 13], [13, 14], [14, 15], [15, 16],
-    [0, 17], [17, 18], [18, 19], [19, 20],
-    [5, 9], [9, 13], [13, 17],
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 4],
+    [0, 5],
+    [5, 6],
+    [6, 7],
+    [7, 8],
+    [0, 9],
+    [9, 10],
+    [10, 11],
+    [11, 12],
+    [0, 13],
+    [13, 14],
+    [14, 15],
+    [15, 16],
+    [0, 17],
+    [17, 18],
+    [18, 19],
+    [19, 20],
+    [5, 9],
+    [9, 13],
+    [13, 17],
   ];
 
   for (const hand of hands) {
@@ -615,8 +740,8 @@ function drawHands(ctx, canvas, hands) {
     ctx.beginPath();
     for (const [start, end] of connections) {
       if (!hand[start] || !hand[end]) continue;
-      ctx.moveTo(hand[start].x * canvas.width, hand[start].y * canvas.height);
-      ctx.lineTo(hand[end].x * canvas.width, hand[end].y * canvas.height);
+      ctx.moveTo(hand[start].x * canvas.clientWidth, hand[start].y * canvas.clienteight);
+      ctx.lineTo(hand[end].x * canvas.clientWidth, hand[end].y * canvas.clientHeight);
     }
     ctx.stroke();
 
@@ -626,22 +751,58 @@ function drawHands(ctx, canvas, hands) {
       ctx.beginPath();
       if (index === 0) {
         ctx.fillStyle = "rgba(239,68,68,0.9)";
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, Math.PI * 2);
+        ctx.arc(
+          point.x * canvas.clientWidth,
+          point.y * canvas.clientHeight,
+          4,
+          0,
+          Math.PI * 2,
+        );
       } else if (index >= 1 && index <= 4) {
         ctx.fillStyle = "rgba(250,204,21,0.9)";
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, index === 4 ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.arc(
+         point.x * canvas.clientWidth,
+          point.y * canvas.clientHeight,
+          index === 4 ? 3.5 : 2.5,
+          0,
+          Math.PI * 2,
+        );
       } else if (index >= 5 && index <= 8) {
         ctx.fillStyle = "rgba(34,211,238,0.9)";
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, index === 8 ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.arc(
+       point.x * canvas.clientWidth,
+          point.y * canvas.clientHeight,
+          index === 8 ? 3.5 : 2.5,
+          0,
+          Math.PI * 2,
+        );
       } else if (index >= 9 && index <= 12) {
         ctx.fillStyle = "rgba(34,197,94,0.9)";
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, index === 12 ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.arc(
+         point.x * canvas.clientWidth,
+          point.y * canvas.clientHeight,
+          index === 12 ? 3.5 : 2.5,
+          0,
+          Math.PI * 2,
+        );
       } else if (index >= 13 && index <= 16) {
         ctx.fillStyle = "rgba(168,85,247,0.9)";
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, index === 16 ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.arc(
+        point.x * canvas.clientWidth,
+          point.y * canvas.clientHeight,
+          index === 16 ? 3.5 : 2.5,
+          0,
+          Math.PI * 2,
+        );
       } else {
         ctx.fillStyle = "rgba(236,72,153,0.9)";
-        ctx.arc(point.x * canvas.width, point.y * canvas.height, index === 20 ? 3.5 : 2.5, 0, Math.PI * 2);
+        ctx.arc(
+        point.x * canvas.clientWidth,
+          point.y * canvas.clientHeight,
+          index === 20 ? 3.5 : 2.5,
+          0,
+          Math.PI * 2,
+        );
       }
       ctx.fill();
     }
@@ -650,16 +811,20 @@ function drawHands(ctx, canvas, hands) {
 }
 
 function needSecureOrigin() {
-  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
   return !(window.location.protocol === "https:" || isLocal);
 }
 
 export default function StudentAttentionMonitor() {
   const videoRef = useRef(null);
   const overlayRef = useRef(null);
+  const newCanvas = useRef(null);
   const sparkRef = useRef(null);
   const frameRef = useRef(0);
   const streamRef = useRef(null);
+  const badLightiningRef = useRef(null);
   const runningRef = useRef(false);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
@@ -681,11 +846,16 @@ export default function StudentAttentionMonitor() {
   }
 
   function showError(message) {
-    setUi((current) => ({ ...current, hasError: true, notice: `Error: ${message}` }));
+    setUi((current) => ({
+      ...current,
+      hasError: true,
+      notice: `Error: ${message}`,
+    }));
   }
 
   async function ensureModels() {
-    if (modelsRef.current.faceLandmarker && modelsRef.current.handLandmarker) return modelsRef.current;
+    if (modelsRef.current.faceLandmarker && modelsRef.current.handLandmarker)
+      return modelsRef.current;
     const fileset = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
     );
@@ -715,9 +885,13 @@ export default function StudentAttentionMonitor() {
     const runtime = runtimeRef.current;
     const sparkCanvas = sparkRef.current;
     const sparkCtx = sparkCanvas?.getContext("2d");
-    if (sparkCanvas && sparkCtx) drawSparkline(sparkCtx, runtime.sparkBuf, sparkCanvas, attention);
+    if (sparkCanvas && sparkCtx)
+      drawSparkline(sparkCtx, runtime.sparkBuf, sparkCanvas, attention);
     const agreeRaw = Math.max(learner.Agreeing || 0, runtime.thumbUpLevel);
-    const disagreeRaw = Math.max(learner.Disagreeing || 0, runtime.thumbDownLevel);
+    const disagreeRaw = Math.max(
+      learner.Disagreeing || 0,
+      runtime.thumbDownLevel,
+    );
     const exclusive = exclusiveAgreeDisagree(
       agreeRaw,
       disagreeRaw,
@@ -731,7 +905,8 @@ export default function StudentAttentionMonitor() {
       Disagreeing: exclusive.disagree,
     };
     const topEmotion =
-      Object.entries(nextLearner).sort((a, b) => b[1] - a[1])[0]?.[0] || "Neutral";
+      Object.entries(nextLearner).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      "Neutral";
     setUi((current) => ({
       ...current,
       attention,
@@ -762,23 +937,201 @@ export default function StudentAttentionMonitor() {
     }
   }
 
+  function getBrightness(ImageData) {
+    const data = ImageData.data;
+    let total = 0;
+    const pixels = data.length / 4;
+    for (let i = 0; i < data.length; i += 4) {
+      total += (data[i] + data[i + 1] + data[i + 2]) / 3;
+    }
+
+    return total / pixels;
+  }
+
+  // function evaluateBrightness(brightness){
+
+  // if (brightness < 50) {
+  //     return { ok: false, message: "Too dark" };
+  //   } else if (brightness > 200) {
+  //     return { ok: false, message: "Too bright" };
+  //   } else {
+  //     return { ok: true, message: "Lighting good" };
+  //   }
+  // }
+
   async function loop() {
     if (!runningRef.current) return;
     const video = videoRef.current;
     const overlay = overlayRef.current;
+  overlay.width = video.videoWidth;
+overlay.height = video.videoHeight;
     const { faceLandmarker, handLandmarker } = modelsRef.current;
-    if (!video || !overlay || !faceLandmarker || !handLandmarker || video.readyState < 2) {
+    if (
+      !video ||
+      !overlay ||
+      !faceLandmarker ||
+      !handLandmarker ||
+      video.readyState < 2
+    ) {
       frameRef.current = requestAnimationFrame(loop);
       return;
     }
+    const processCanvas = newCanvas.current;
+    const pctx = processCanvas.getContext("2d");
+    processCanvas.width = video.videoWidth;
+    processCanvas.height = video.videoHeight;
+
     const ctx = overlay.getContext("2d");
     const ts = performance.now();
     const face = faceLandmarker.detectForVideo(video, ts);
     const hands = handLandmarker.detectForVideo(video, ts);
     if (face?.faceLandmarks?.length) {
+      console.log("Faces detected:", face.faceLandmarks.length);
+      console.log("Number of landmarks:", face.faceLandmarks[0].length);
+      console.log("Sample landmark:", face.faceLandmarks[0][0]);
+
+      const landmarks = face.faceLandmarks[0];
+      const canvasWidth = processCanvas.width;
+      const canvasHeight = processCanvas.height;
+      //uneven lightening
+
+      const [leftCheek, rightCheek] = cheekPoints(landmarks);
+      console.log("Left Cheek:", leftCheek);
+      console.log("Right Cheek:", rightCheek);
+      const leftX = Math.floor(leftCheek.x * canvasWidth);
+      const leftY = Math.floor(leftCheek.y * canvasHeight);
+
+      const rightX = Math.floor(rightCheek.x * canvasWidth);
+      const rightY = Math.floor(rightCheek.y * canvasHeight);
+
+      console.log("Left cheek pixel:", leftX, leftY);
+      console.log("Right cheek pixel:", rightX, rightY);
+
+      const boxSize = 20;
+      const halfBox = Math.floor(boxSize / 2);
+
+      const leftBoxX = leftX - halfBox;
+      const leftBoxY = leftY - halfBox;
+      const rightBoxX = rightX - halfBox;
+      const rightBoxY = rightY - halfBox;
+      console.log("Left box:", leftBoxX, leftBoxY);
+      console.log("Right box:", rightBoxX, rightBoxY);
+
+      let minX = 1;
+      let maxX = 0;
+      let minY = 1;
+      let maxY = 0;
+
+      for (const point of landmarks) {
+        if (point.x < minX) minX = point.x;
+        if (point.x > maxX) maxX = point.x;
+        if (point.y < minY) minY = point.y;
+        if (point.y > maxY) maxY = point.y;
+      }
+
+      console.log("Bounding Box:", minX, maxX, minY, maxY);
+
+      const x1 = Math.floor(minX * canvasWidth);
+      const x2 = Math.floor(maxX * canvasWidth);
+
+      const y1 = Math.floor(minY * canvasHeight);
+      const y2 = Math.floor(maxY * canvasHeight);
+      console.log("pixel box: ", x1, x2, y1, y2);
+
+      const faceWidth = x2 - x1;
+      const faceHeight = y2 - y1;
+
+      pctx.drawImage(video, 0, 0, processCanvas.width, processCanvas.height);
+
+      const leftCheekRegion = pctx.getImageData(
+        leftBoxX,
+        leftBoxY,
+        boxSize,
+        boxSize,
+      );
+      const rightCheekRegion = pctx.getImageData(
+        rightBoxX,
+        rightBoxY,
+        boxSize,
+        boxSize,
+      );
+      console.log("Left cheek region:", leftCheekRegion);
+      console.log("Right cheek region:", rightCheekRegion);
+      const leftBrightness = getBrightness(leftCheekRegion);
+      const rightBrightness = getBrightness(rightCheekRegion);
+      console.log("Left Cheek Brightness:", leftBrightness);
+      console.log("Right Cheek Brightness:", rightBrightness);
+
+      const lightingDifference = Math.abs(leftBrightness - rightBrightness);
+
+      console.log("Lighting Difference:", lightingDifference);
+
+      if (lightingDifference > 70) {
+        console.log("⚠️ Uneven Lighting Detected");
+      } else {
+        console.log("✅ Balanced Lighting");
+      }
+
+      const faceRegion = pctx.getImageData(x1, y1, faceWidth, faceHeight);
+
+      const brightness = getBrightness(faceRegion);
+      console.log("Brightness:", brightness);
+      let lightingStatus = "";
+      let lightingSuggestion = "";
+      let showLightingpopup = false;
+
+      if (brightness < 50) {
+        lightingStatus = "Too Dark ❌";
+        lightingSuggestion = "Move closer to a light source";
+
+        if (!badLightiningRef.current) {
+          badLightiningRef.current = performance.now();
+        }
+        const badDuration = performance.now() - badLightiningRef.current;
+        if (badDuration > 3000) {
+          showLightingpopup = true;
+        }
+      } else if (brightness > 200) {
+        const badDuration = performance.now() - badLightiningRef.current;
+        lightingStatus = "Too Bright ⚠️";
+        lightingSuggestion =
+          "Reduce direct light or move away from strong light";
+
+        if (!badLightiningRef.current) {
+          badLightiningRef.current = performance.now();
+        }
+        if (badDuration > 3000) {
+          showLightingpopup = true;
+        }
+      } else {
+        lightingStatus = "Lighting Good ✅";
+        lightingSuggestion = "Lighting is suitable for video capture";
+        badLightiningRef.current = null;
+        showLightingpopup = false;
+      }
+
       if (overlayVisibleRef.current) {
         drawFace(ctx, overlay, face.faceLandmarks[0]);
         drawHands(ctx, overlay, hands?.landmarks);
+        // ctx.save();
+        // ctx.translate(overlay.width, 0);
+        // ctx.scale(-1, 1);
+
+        // ctx.font = "bold 24px Arial";
+        // ctx.textAlign = "right";
+
+        // const textX = overlay.width - x1;
+        // const textY = y1 - 20;
+
+        // if (brightness < 50) {
+        //   ctx.fillStyle = "red";
+        //   ctx.fillText("⚠️ Lighting Too Dark", textX, textY);
+        // } else if (brightness > 200) {
+        //   ctx.fillStyle = "orange";
+        //   ctx.fillText("⚠️ Too Bright", textX, textY);
+        // }
+
+        // ctx.restore();
       } else {
         ctx.clearRect(0, 0, overlay.width, overlay.height);
       }
@@ -786,13 +1139,27 @@ export default function StudentAttentionMonitor() {
       let yawDeg = 0;
       let pitchDeg = 0;
       if (face.facialTransformationMatrixes?.length) {
-        const pose = forwardYawPitchFromMatrix(face.facialTransformationMatrixes[0].data);
+        const pose = forwardYawPitchFromMatrix(
+          face.facialTransformationMatrixes[0].data,
+        );
         if (pose) {
           pushHeadPose(runtimeRef.current, pose);
           headPoseAvailable = true;
           yawDeg = pose.yaw;
           pitchDeg = pose.pitch;
         }
+      }
+      setUi((current) => ({
+        ...current,
+        brightness: Math.round(brightness),
+        lightingStatus: lightingStatus,
+        lightingSuggestion: lightingSuggestion,
+        showLightingPopup: showLightingpopup,
+      }));
+      if (showLightingpopup) {
+        updateFps();
+        frameRef.current = requestAnimationFrame(loop);
+        return;
       }
       const runtime = runtimeRef.current;
       const { up, down } = detectThumbs(hands);
@@ -810,7 +1177,8 @@ export default function StudentAttentionMonitor() {
       const raiseActive = runtime.raiseHandLevel >= 0.7;
       if (upActive && !runtime.prevUpActive) runtime.thumbUpCount += 1;
       if (downActive && !runtime.prevDownActive) runtime.thumbDownCount += 1;
-      if (raiseActive && !runtime.prevRaiseHandActive) runtime.raiseHandCount += 1;
+      if (raiseActive && !runtime.prevRaiseHandActive)
+        runtime.raiseHandCount += 1;
       runtime.prevUpActive = upActive;
       runtime.prevDownActive = downActive;
       runtime.prevRaiseHandActive = raiseActive;
@@ -833,6 +1201,7 @@ export default function StudentAttentionMonitor() {
       ctx2.clearRect(0, 0, overlay.width, overlay.height);
       updateUi(runtimeRef.current.attnEMA(0), INITIAL_LEARNER);
     }
+
     updateFps();
     if (runningRef.current) frameRef.current = requestAnimationFrame(loop);
   }
@@ -842,6 +1211,7 @@ export default function StudentAttentionMonitor() {
       showError("Camera access requires HTTPS or localhost.");
       return;
     }
+    newCanvas.current = document.createElement("canvas");
     try {
       stopStream();
       runtimeRef.current = createRuntimeState();
@@ -851,19 +1221,26 @@ export default function StudentAttentionMonitor() {
       if (!video || !overlay) return;
       await ensureModels();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 960 }, height: { ideal: 720 } },
+        video: {
+          facingMode: "user",
+          width: { ideal: 960 },
+          height: { ideal: 720 },
+        },
         audio: false,
       });
       streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
-      overlay.width = video.videoWidth;
-      overlay.height = video.videoHeight;
+      await new Promise(resolve => setTimeout(resolve, 300));
+     overlay.width = video.videoWidth;
+overlay.height = video.videoHeight;
       runningRef.current = true;
       frameRef.current = requestAnimationFrame(loop);
     } catch (error) {
       stopStream();
-      showError(error instanceof Error ? error.message : "Failed to start camera.");
+      showError(
+        error instanceof Error ? error.message : "Failed to start camera.",
+      );
     }
   }
 
@@ -890,7 +1267,10 @@ export default function StudentAttentionMonitor() {
           <button className="btn" onClick={stop}>
             Stop
           </button>
-          <button className="btn" onClick={() => setOverlayVisible((value) => !value)}>
+          <button
+            className="btn"
+            onClick={() => setOverlayVisible((value) => !value)}
+          >
             Toggle overlay
           </button>
         </div>
@@ -899,7 +1279,24 @@ export default function StudentAttentionMonitor() {
       <main className="app">
         <section className="card videoWrap">
           <video ref={videoRef} autoPlay playsInline muted />
-          <canvas ref={overlayRef} className={`overlay${overlayVisible ? "" : " hidden"}`} />
+          <canvas
+            ref={overlayRef}
+            className={`overlay${overlayVisible ? "" : " hidden"}`}
+          />
+
+          {ui.showLightingPopup && (
+            <div className="lightingPopup">
+              <h2>Poor Lighting Detected</h2>
+              <p>Your face is not clearly visible for reliable analysis.</p>
+
+              <p>
+                Please move closer to a light source or reduce strong direct
+                light.
+              </p>
+
+              <p>Waiting for better lighting...</p>
+            </div>
+          )}
         </section>
 
         <aside className="card pane">
@@ -914,7 +1311,22 @@ export default function StudentAttentionMonitor() {
             <span className="muted">Current state</span>
             <b>{ui.topEmotion}</b>
           </div>
+          <h3>Video Quality</h3>
 
+          <div className="kv">
+            <span className="muted">Lighting Status</span>
+            <b>{ui.lightingStatus}</b>
+          </div>
+
+          <div className="kv">
+            <span className="muted">Face Brightness</span>
+            <b>{ui.brightness}</b>
+          </div>
+
+          <div className="kv">
+            <span className="muted">Suggestion</span>
+            <b>{ui.lightingSuggestion}</b>
+          </div>
           <h3>Learner states</h3>
           <div className="grid">
             <div>
@@ -950,13 +1362,16 @@ export default function StudentAttentionMonitor() {
             <span className="muted tiny">{ui.fps}</span>
           </div>
           <canvas ref={sparkRef} className="spark" width="600" height="48" />
-          <div className={`notice tiny${ui.hasError ? " error" : ""}`}>{ui.notice}</div>
+          <div className={`notice tiny${ui.hasError ? " error" : ""}`}>
+            {ui.notice}
+          </div>
         </aside>
       </main>
 
       <footer>
         <span className="tiny">
-          Inference is approximate; use responsibly. This is not a diagnostic or proctoring tool.
+          Inference is approximate; use responsibly. This is not a diagnostic or
+          proctoring tool.
         </span>
       </footer>
     </div>
@@ -971,7 +1386,12 @@ function StateRow({ label, icon, count, level, active = 0 }) {
       <b>{label}</b>
       {icon ? (
         <>
-          <span className={`icon${activeClass}`} style={{ opacity }} role="img" aria-label={label}>
+          <span
+            className={`icon${activeClass}`}
+            style={{ opacity }}
+            role="img"
+            aria-label={label}
+          >
             {icon}
           </span>
           <span className="count">{count ? `x${count}` : ""}</span>
