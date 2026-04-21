@@ -24,6 +24,10 @@ const INITIAL_UI = {
   lightingSuggestion: "Checking lighting...",
   showLightingPopup: false,
 
+  showUnevenLightingPopup: false,
+  unevenLightingStatus: "Checking Light Balance",
+ unevenLightingSuggestion: "Checking for uneven lighting...",
+
   fps: "fps: --",
   learner: INITIAL_LEARNER,
   gestureLevels: { raiseHand: 0, agree: 0, disagree: 0 },
@@ -132,14 +136,16 @@ function mouthCenter(faceLM) {
 }
 
 function cheekPoints(faceLM) {
-  if (!faceLM?.length)
+  if (!faceLM?.length) {
     return [
-      { x: 0.35, y: 0.55 },
-      { x: 0.65, y: 0.55 },
+      { x: 0.42, y: 0.58 },
+      { x: 0.58, y: 0.58 },
     ];
+  }
+
   return [
-    faceLM[234] || faceLM[Math.floor(faceLM.length * 0.4)] || faceLM[0],
-    faceLM[454] || faceLM[Math.floor(faceLM.length * 0.6)] || faceLM[0],
+    faceLM[205] || faceLM[187] || faceLM[0],
+    faceLM[425] || faceLM[411] || faceLM[0],
   ];
 }
 
@@ -631,8 +637,13 @@ function drawFace(ctx, canvas, landmarks) {
   ctx.fillStyle = "rgba(56,189,248,0.4)";
   for (const point of landmarks) {
     ctx.beginPath();
-    ctx.arc( point.x * canvas.clientWidth,
-  point.y * canvas.clientHeight, 1, 0, Math.PI * 2);
+    ctx.arc(
+      point.x * canvas.clientWidth,
+      point.y * canvas.clientHeight,
+      1,
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
   }
 
@@ -674,7 +685,7 @@ function drawFace(ctx, canvas, landmarks) {
     ctx.beginPath();
     ctx.arc(
       point.x * canvas.clientWidth,
-  point.y * canvas.clientHeight,
+      point.y * canvas.clientHeight,
       keyPoint.size,
       0,
       Math.PI * 2,
@@ -694,10 +705,9 @@ function drawFace(ctx, canvas, landmarks) {
     const point = landmarks[faceOval[index]];
     if (!point) continue;
     if (index === 0)
-      ctx.moveTo(point.x * canvas.clientWidth,
-  point.y * canvas.clientHeight);
-    else ctx.lineTo(point.x * canvas.clientWidth,
-  point.y * canvas.clientHeight);
+      ctx.moveTo(point.x * canvas.clientWidth, point.y * canvas.clientHeight);
+    else
+      ctx.lineTo(point.x * canvas.clientWidth, point.y * canvas.clientHeight);
   }
   ctx.closePath();
   ctx.stroke();
@@ -740,8 +750,14 @@ function drawHands(ctx, canvas, hands) {
     ctx.beginPath();
     for (const [start, end] of connections) {
       if (!hand[start] || !hand[end]) continue;
-      ctx.moveTo(hand[start].x * canvas.clientWidth, hand[start].y * canvas.clienteight);
-      ctx.lineTo(hand[end].x * canvas.clientWidth, hand[end].y * canvas.clientHeight);
+      ctx.moveTo(
+        hand[start].x * canvas.clientWidth,
+        hand[start].y * canvas.clienteight,
+      );
+      ctx.lineTo(
+        hand[end].x * canvas.clientWidth,
+        hand[end].y * canvas.clientHeight,
+      );
     }
     ctx.stroke();
 
@@ -761,7 +777,7 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 1 && index <= 4) {
         ctx.fillStyle = "rgba(250,204,21,0.9)";
         ctx.arc(
-         point.x * canvas.clientWidth,
+          point.x * canvas.clientWidth,
           point.y * canvas.clientHeight,
           index === 4 ? 3.5 : 2.5,
           0,
@@ -770,7 +786,7 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 5 && index <= 8) {
         ctx.fillStyle = "rgba(34,211,238,0.9)";
         ctx.arc(
-       point.x * canvas.clientWidth,
+          point.x * canvas.clientWidth,
           point.y * canvas.clientHeight,
           index === 8 ? 3.5 : 2.5,
           0,
@@ -779,7 +795,7 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 9 && index <= 12) {
         ctx.fillStyle = "rgba(34,197,94,0.9)";
         ctx.arc(
-         point.x * canvas.clientWidth,
+          point.x * canvas.clientWidth,
           point.y * canvas.clientHeight,
           index === 12 ? 3.5 : 2.5,
           0,
@@ -788,7 +804,7 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 13 && index <= 16) {
         ctx.fillStyle = "rgba(168,85,247,0.9)";
         ctx.arc(
-        point.x * canvas.clientWidth,
+          point.x * canvas.clientWidth,
           point.y * canvas.clientHeight,
           index === 16 ? 3.5 : 2.5,
           0,
@@ -797,7 +813,7 @@ function drawHands(ctx, canvas, hands) {
       } else {
         ctx.fillStyle = "rgba(236,72,153,0.9)";
         ctx.arc(
-        point.x * canvas.clientWidth,
+          point.x * canvas.clientWidth,
           point.y * canvas.clientHeight,
           index === 20 ? 3.5 : 2.5,
           0,
@@ -825,6 +841,7 @@ export default function StudentAttentionMonitor() {
   const frameRef = useRef(0);
   const streamRef = useRef(null);
   const badLightiningRef = useRef(null);
+  const unevenLightingRef = useRef(null);
   const runningRef = useRef(false);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
@@ -963,8 +980,8 @@ export default function StudentAttentionMonitor() {
     if (!runningRef.current) return;
     const video = videoRef.current;
     const overlay = overlayRef.current;
-  overlay.width = video.videoWidth;
-overlay.height = video.videoHeight;
+    overlay.width = video.videoWidth;
+    overlay.height = video.videoHeight;
     const { faceLandmarker, handLandmarker } = modelsRef.current;
     if (
       !video ||
@@ -1007,7 +1024,7 @@ overlay.height = video.videoHeight;
       console.log("Left cheek pixel:", leftX, leftY);
       console.log("Right cheek pixel:", rightX, rightY);
 
-      const boxSize = 20;
+      const boxSize = 35;
       const halfBox = Math.floor(boxSize / 2);
 
       const leftBoxX = leftX - halfBox;
@@ -1065,10 +1082,28 @@ overlay.height = video.videoHeight;
       const lightingDifference = Math.abs(leftBrightness - rightBrightness);
 
       console.log("Lighting Difference:", lightingDifference);
-
+  let showUnevenLightingPopup = false;
+let unevenLightingStatus= "";
+let unevenLightingSuggestion="";
       if (lightingDifference > 70) {
+        if (!unevenLightingRef.current) {
+          unevenLightingRef.current = performance.now();
+        }
+        const unevenDuration = performance.now() - unevenLightingRef.current;
+        if (unevenDuration > 3000) {
+            showUnevenLightingPopup=true
+            unevenLightingStatus="Uneven Lighting Detected ⚠️"
+            unevenLightingSuggestion="Try to have more balanced lighting on both sides of your face"
+        }
+
         console.log("⚠️ Uneven Lighting Detected");
       } else {
+             unevenLightingRef.current = null;
+                 showUnevenLightingPopup =false,   
+                 unevenLightingStatus = ""
+                 unevenLightingSuggestion=""
+                 
+
         console.log("✅ Balanced Lighting");
       }
 
@@ -1155,6 +1190,11 @@ overlay.height = video.videoHeight;
         lightingStatus: lightingStatus,
         lightingSuggestion: lightingSuggestion,
         showLightingPopup: showLightingpopup,
+        unevenLightingStatus: unevenLightingStatus,
+        unevenLightingSuggestion: unevenLightingSuggestion,
+        showUnevenLightingPopup: showUnevenLightingPopup,
+
+
       }));
       if (showLightingpopup) {
         updateFps();
@@ -1231,9 +1271,9 @@ overlay.height = video.videoHeight;
       streamRef.current = stream;
       video.srcObject = stream;
       await video.play();
-      await new Promise(resolve => setTimeout(resolve, 300));
-     overlay.width = video.videoWidth;
-overlay.height = video.videoHeight;
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      overlay.width = video.videoWidth;
+      overlay.height = video.videoHeight;
       runningRef.current = true;
       frameRef.current = requestAnimationFrame(loop);
     } catch (error) {
@@ -1297,6 +1337,14 @@ overlay.height = video.videoHeight;
               <p>Waiting for better lighting...</p>
             </div>
           )}
+          {ui.showUnevenLightingPopup && (
+  <div className="lightingPopup">
+    <h2>Uneven Lighting Detected</h2>
+    <p>One side of your face is brighter than the other.</p>
+    <p>Please sit facing the light source evenly.</p>
+    <p>Waiting for balanced lighting...</p>
+  </div>
+)}
         </section>
 
         <aside className="card pane">
@@ -1327,6 +1375,10 @@ overlay.height = video.videoHeight;
             <span className="muted">Suggestion</span>
             <b>{ui.lightingSuggestion}</b>
           </div>
+
+
+
+          
           <h3>Learner states</h3>
           <div className="grid">
             <div>
