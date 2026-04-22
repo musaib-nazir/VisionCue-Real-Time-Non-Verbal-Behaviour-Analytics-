@@ -26,7 +26,7 @@ const INITIAL_UI = {
 
   showUnevenLightingPopup: false,
   unevenLightingStatus: "Checking Light Balance",
- unevenLightingSuggestion: "Checking for uneven lighting...",
+  unevenLightingSuggestion: "Checking for uneven lighting...",
 
   fps: "fps: --",
   learner: INITIAL_LEARNER,
@@ -1082,27 +1082,26 @@ export default function StudentAttentionMonitor() {
       const lightingDifference = Math.abs(leftBrightness - rightBrightness);
 
       console.log("Lighting Difference:", lightingDifference);
-  let showUnevenLightingPopup = false;
-let unevenLightingStatus= "";
-let unevenLightingSuggestion="";
+      let showUnevenLightingPopup = false;
+      let unevenLightingStatus = "";
+      let unevenLightingSuggestion = "";
       if (lightingDifference > 70) {
         if (!unevenLightingRef.current) {
           unevenLightingRef.current = performance.now();
         }
         const unevenDuration = performance.now() - unevenLightingRef.current;
         if (unevenDuration > 3000) {
-            showUnevenLightingPopup=true
-            unevenLightingStatus="Uneven Lighting Detected ⚠️"
-            unevenLightingSuggestion="Try to have more balanced lighting on both sides of your face"
+          showUnevenLightingPopup = true;
+          unevenLightingStatus = "Uneven Lighting Detected ⚠️";
+          unevenLightingSuggestion =
+            "Try to have more balanced lighting on both sides of your face";
         }
 
         console.log("⚠️ Uneven Lighting Detected");
       } else {
-             unevenLightingRef.current = null;
-                 showUnevenLightingPopup =false,   
-                 unevenLightingStatus = ""
-                 unevenLightingSuggestion=""
-                 
+        unevenLightingRef.current = null;
+        ((showUnevenLightingPopup = false), (unevenLightingStatus = "Lighting balanced"));
+        unevenLightingSuggestion = "";
 
         console.log("✅ Balanced Lighting");
       }
@@ -1115,7 +1114,7 @@ let unevenLightingSuggestion="";
       let lightingSuggestion = "";
       let showLightingpopup = false;
 
-      if (brightness < 50) {
+      if (brightness < 40) {
         lightingStatus = "Too Dark ❌";
         lightingSuggestion = "Move closer to a light source";
 
@@ -1193,10 +1192,8 @@ let unevenLightingSuggestion="";
         unevenLightingStatus: unevenLightingStatus,
         unevenLightingSuggestion: unevenLightingSuggestion,
         showUnevenLightingPopup: showUnevenLightingPopup,
-
-
       }));
-      if (showLightingpopup) {
+      if (showLightingpopup || showUnevenLightingPopup) {
         updateFps();
         frameRef.current = requestAnimationFrame(loop);
         return;
@@ -1338,13 +1335,13 @@ let unevenLightingSuggestion="";
             </div>
           )}
           {ui.showUnevenLightingPopup && (
-  <div className="lightingPopup">
-    <h2>Uneven Lighting Detected</h2>
-    <p>One side of your face is brighter than the other.</p>
-    <p>Please sit facing the light source evenly.</p>
-    <p>Waiting for balanced lighting...</p>
-  </div>
-)}
+            <div className="lightingPopup">
+              <h2>Uneven Lighting Detected</h2>
+              <p>One side of your face is brighter than the other.</p>
+              <p>Please sit facing the light source evenly.</p>
+              <p>Waiting for balanced lighting...</p>
+            </div>
+          )}
         </section>
 
         <aside className="card pane">
@@ -1376,9 +1373,16 @@ let unevenLightingSuggestion="";
             <b>{ui.lightingSuggestion}</b>
           </div>
 
+          <div className="kv">
+            <span className="muted">Light Balance</span>
+            <b>{ui.unevenLightingStatus}</b>
+          </div>
 
+          <div className="kv">
+            <span className="muted">Balance Suggestion</span>
+            <b>{ui.unevenLightingSuggestion}</b>
+          </div>
 
-          
           <h3>Learner states</h3>
           <div className="grid">
             <div>
