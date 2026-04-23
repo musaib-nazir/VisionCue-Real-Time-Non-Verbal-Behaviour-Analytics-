@@ -27,6 +27,16 @@ const INITIAL_UI = {
   showUnevenLightingPopup: false,
   unevenLightingStatus: "Checking Light Balance",
   unevenLightingSuggestion: "Checking for uneven lighting...",
+  faceDistanceStatus: "Checking Distance",
+  faceDistanceSuggestion:
+    "Checking if you're the right distance from the camera...",
+
+  showFaceDistancePopup: false,
+
+  facePositionstatus: "Checking Face Position,,,,,",
+  facePositionSuggestion:
+    "Checking if your face is well positioned in the frame...",
+  showFacePositionPopup: false,
 
   fps: "fps: --",
   learner: INITIAL_LEARNER,
@@ -637,13 +647,7 @@ function drawFace(ctx, canvas, landmarks) {
   ctx.fillStyle = "rgba(56,189,248,0.4)";
   for (const point of landmarks) {
     ctx.beginPath();
-    ctx.arc(
-      point.x * canvas.clientWidth,
-      point.y * canvas.clientHeight,
-      1,
-      0,
-      Math.PI * 2,
-    );
+    ctx.arc(point.x * canvas.width, point.y * canvas.height, 1, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -684,8 +688,8 @@ function drawFace(ctx, canvas, landmarks) {
     ctx.fillStyle = keyPoint.color;
     ctx.beginPath();
     ctx.arc(
-      point.x * canvas.clientWidth,
-      point.y * canvas.clientHeight,
+      point.x * canvas.width,
+      point.y * canvas.height,
       keyPoint.size,
       0,
       Math.PI * 2,
@@ -705,9 +709,8 @@ function drawFace(ctx, canvas, landmarks) {
     const point = landmarks[faceOval[index]];
     if (!point) continue;
     if (index === 0)
-      ctx.moveTo(point.x * canvas.clientWidth, point.y * canvas.clientHeight);
-    else
-      ctx.lineTo(point.x * canvas.clientWidth, point.y * canvas.clientHeight);
+      ctx.moveTo(point.x * canvas.width, point.y * canvas.height);
+    else ctx.lineTo(point.x * canvas.width, point.y * canvas.height);
   }
   ctx.closePath();
   ctx.stroke();
@@ -750,14 +753,8 @@ function drawHands(ctx, canvas, hands) {
     ctx.beginPath();
     for (const [start, end] of connections) {
       if (!hand[start] || !hand[end]) continue;
-      ctx.moveTo(
-        hand[start].x * canvas.clientWidth,
-        hand[start].y * canvas.clienteight,
-      );
-      ctx.lineTo(
-        hand[end].x * canvas.clientWidth,
-        hand[end].y * canvas.clientHeight,
-      );
+      ctx.moveTo(hand[start].x * canvas.width, hand[start].y * canvas.height);
+      ctx.lineTo(hand[end].x * canvas.width, hand[end].y * canvas.height);
     }
     ctx.stroke();
 
@@ -768,8 +765,8 @@ function drawHands(ctx, canvas, hands) {
       if (index === 0) {
         ctx.fillStyle = "rgba(239,68,68,0.9)";
         ctx.arc(
-          point.x * canvas.clientWidth,
-          point.y * canvas.clientHeight,
+          point.x * canvas.width,
+          point.y * canvas.height,
           4,
           0,
           Math.PI * 2,
@@ -777,8 +774,8 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 1 && index <= 4) {
         ctx.fillStyle = "rgba(250,204,21,0.9)";
         ctx.arc(
-          point.x * canvas.clientWidth,
-          point.y * canvas.clientHeight,
+          point.x * canvas.width,
+          point.y * canvas.height,
           index === 4 ? 3.5 : 2.5,
           0,
           Math.PI * 2,
@@ -786,8 +783,8 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 5 && index <= 8) {
         ctx.fillStyle = "rgba(34,211,238,0.9)";
         ctx.arc(
-          point.x * canvas.clientWidth,
-          point.y * canvas.clientHeight,
+          point.x * canvas.width,
+          point.y * canvas.height,
           index === 8 ? 3.5 : 2.5,
           0,
           Math.PI * 2,
@@ -795,8 +792,8 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 9 && index <= 12) {
         ctx.fillStyle = "rgba(34,197,94,0.9)";
         ctx.arc(
-          point.x * canvas.clientWidth,
-          point.y * canvas.clientHeight,
+          point.x * canvas.width,
+          point.y * canvas.height,
           index === 12 ? 3.5 : 2.5,
           0,
           Math.PI * 2,
@@ -804,8 +801,8 @@ function drawHands(ctx, canvas, hands) {
       } else if (index >= 13 && index <= 16) {
         ctx.fillStyle = "rgba(168,85,247,0.9)";
         ctx.arc(
-          point.x * canvas.clientWidth,
-          point.y * canvas.clientHeight,
+          point.x * canvas.width,
+          point.y * canvas.height,
           index === 16 ? 3.5 : 2.5,
           0,
           Math.PI * 2,
@@ -813,8 +810,8 @@ function drawHands(ctx, canvas, hands) {
       } else {
         ctx.fillStyle = "rgba(236,72,153,0.9)";
         ctx.arc(
-          point.x * canvas.clientWidth,
-          point.y * canvas.clientHeight,
+          point.x * canvas.width,
+          point.y * canvas.height,
           index === 20 ? 3.5 : 2.5,
           0,
           Math.PI * 2,
@@ -842,6 +839,8 @@ export default function StudentAttentionMonitor() {
   const streamRef = useRef(null);
   const badLightiningRef = useRef(null);
   const unevenLightingRef = useRef(null);
+  const faceDistRef = useRef(null);
+  const facePostRef = useRef(null);
   const runningRef = useRef(false);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
@@ -1010,6 +1009,7 @@ export default function StudentAttentionMonitor() {
       const landmarks = face.faceLandmarks[0];
       const canvasWidth = processCanvas.width;
       const canvasHeight = processCanvas.height;
+
       //uneven lightening
 
       const [leftCheek, rightCheek] = cheekPoints(landmarks);
@@ -1047,6 +1047,7 @@ export default function StudentAttentionMonitor() {
       }
 
       console.log("Bounding Box:", minX, maxX, minY, maxY);
+
 
       const x1 = Math.floor(minX * canvasWidth);
       const x2 = Math.floor(maxX * canvasWidth);
@@ -1100,12 +1101,14 @@ export default function StudentAttentionMonitor() {
         console.log("⚠️ Uneven Lighting Detected");
       } else {
         unevenLightingRef.current = null;
-        ((showUnevenLightingPopup = false), (unevenLightingStatus = "Lighting balanced"));
+        ((showUnevenLightingPopup = false),
+          (unevenLightingStatus = "Lighting balanced"));
         unevenLightingSuggestion = "";
 
         console.log("✅ Balanced Lighting");
       }
 
+      //  brightness detection
       const faceRegion = pctx.getImageData(x1, y1, faceWidth, faceHeight);
 
       const brightness = getBrightness(faceRegion);
@@ -1143,29 +1146,108 @@ export default function StudentAttentionMonitor() {
         badLightiningRef.current = null;
         showLightingpopup = false;
       }
+      //Face Size / Distance Check
+      const FaceWIdth = maxX - minX;
+      const FaceHeight = maxY - minY;
+      const FaceArea = FaceWIdth * FaceHeight;
+      let faceDistanceStatus = "";
+      let faceDistanceSuggestion = "";
+      let showFaceDistancePopup = false;
+
+      if (FaceArea < 0.02) {
+        console.log("Too Far from the camera");
+        faceDistanceStatus = "Too Far ❌";
+        faceDistanceSuggestion = "Move closer to the camera";
+        if (!faceDistRef.current) {
+          faceDistRef.current = performance.now();
+        }
+        const badDistance = performance.now() - faceDistRef.current;
+        if (badDistance > 3000) {
+          showFaceDistancePopup = true;
+        }
+      } else if (FaceArea > 0.55) {
+        console.log("Too Close to the camera");
+        faceDistanceStatus = "Too Close ⚠️";
+        faceDistanceSuggestion = "Move slightly back";
+        if (!faceDistRef.current) {
+          faceDistRef.current = performance.now();
+        }
+
+        const badDistance = performance.now() - faceDistRef.current;
+        if (badDistance > 3000) {
+          showFaceDistancePopup = true;
+        }
+      } else {
+        faceDistanceStatus = "Good Distance ✅";
+        faceDistanceSuggestion = "Face distance is ideal";
+        showFaceDistancePopup = false;
+        faceDistRef.current = null;
+      }
+
+      //faceposition Check
+      
+      const faceCenterX = (minX + maxX) / 2;
+      const faceCenterY = (minY + maxY) / 2;
+      let facePositionStatus = "";
+      let facePositionSuggestion = "";
+      let showFacePositionPopup = false;
+
+      if (  faceCenterX < 0.4) {
+        facePositionStatus = "Face Left Aligned ⚠️";
+        facePositionSuggestion = "Please center your face in the frame";
+        if (!facePostRef.current) {
+          facePostRef.current = performance.now();
+        } else {
+          const badPosition = performance.now() - facePostRef.current;
+          if (badPosition > 3000) {
+            showFacePositionPopup = true;
+          }
+        }
+      } else if (faceCenterX > 0.6) {
+        facePositionStatus = "Face Right Aligned ⚠️";
+        facePositionSuggestion = "Please center your face in the frame";
+        if (!facePostRef.current) {
+          facePostRef.current = performance.now();
+        } else {
+          const badPosition = performance.now() - facePostRef.current;
+          if (badPosition > 3000) {
+            showFacePositionPopup = true;
+          }
+        }
+      } else if (faceCenterY < 0.4) {
+        facePositionStatus = "Face Top Aligned ⚠️";
+        facePositionSuggestion = "Please center your face in the frame";
+
+        if (!facePostRef.current) {
+          facePostRef.current = performance.now();
+        } else {
+          const badPosition = performance.now() - facePostRef.current;
+          if (badPosition > 3000) {
+            showFacePositionPopup = true;
+          }
+        }
+      } else if (faceCenterY > 0.6) {
+        facePositionStatus = "Face Bottom Aligned ⚠️";
+        facePositionSuggestion = "Please center your face in the frame";
+
+        if (!facePostRef.current) {
+          facePostRef.current = performance.now();
+        } else {
+          const badPosition = performance.now() - facePostRef.current;
+          if (badPosition > 3000) {
+            showFacePositionPopup = true;
+          }
+        }
+      } else {
+        facePositionStatus = "Face Centered ✅";
+        facePositionSuggestion = "Face position is good";
+        showFacePositionPopup = false;
+        facePostRef.current = null;
+      }
 
       if (overlayVisibleRef.current) {
         drawFace(ctx, overlay, face.faceLandmarks[0]);
         drawHands(ctx, overlay, hands?.landmarks);
-        // ctx.save();
-        // ctx.translate(overlay.width, 0);
-        // ctx.scale(-1, 1);
-
-        // ctx.font = "bold 24px Arial";
-        // ctx.textAlign = "right";
-
-        // const textX = overlay.width - x1;
-        // const textY = y1 - 20;
-
-        // if (brightness < 50) {
-        //   ctx.fillStyle = "red";
-        //   ctx.fillText("⚠️ Lighting Too Dark", textX, textY);
-        // } else if (brightness > 200) {
-        //   ctx.fillStyle = "orange";
-        //   ctx.fillText("⚠️ Too Bright", textX, textY);
-        // }
-
-        // ctx.restore();
       } else {
         ctx.clearRect(0, 0, overlay.width, overlay.height);
       }
@@ -1192,8 +1274,22 @@ export default function StudentAttentionMonitor() {
         unevenLightingStatus: unevenLightingStatus,
         unevenLightingSuggestion: unevenLightingSuggestion,
         showUnevenLightingPopup: showUnevenLightingPopup,
+        faceDistanceStatus: faceDistanceStatus,
+        faceDistanceSuggestion: faceDistanceSuggestion,
+        showFaceDistancePopup: showFaceDistancePopup,
+        facePositionstatus: facePositionStatus,
+        facePositionSuggestion: facePositionSuggestion,
+        showFacePositionPopup: showFacePositionPopup
+
+
+
+
       }));
-      if (showLightingpopup || showUnevenLightingPopup) {
+      if (
+        showLightingpopup ||
+        showUnevenLightingPopup ||
+        showFaceDistancePopup
+      ) {
         updateFps();
         frameRef.current = requestAnimationFrame(loop);
         return;
@@ -1342,6 +1438,23 @@ export default function StudentAttentionMonitor() {
               <p>Waiting for balanced lighting...</p>
             </div>
           )}
+
+          {ui.showFaceDistancePopup && (
+            <div className="lightingPopup">
+              <h1>Face Distance Issue Detected </h1>
+              {ui.faceDistanceStatus === "Too Far ❌" ? (
+                <p>
+                  Your face appears too small, indicating you are too far from
+                  the camera.
+                </p>
+              ) : (
+                <p>
+                  Your face appears too large, indicating you are too close to
+                  the camera.
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         <aside className="card pane">
@@ -1382,6 +1495,28 @@ export default function StudentAttentionMonitor() {
             <span className="muted">Balance Suggestion</span>
             <b>{ui.unevenLightingSuggestion}</b>
           </div>
+
+          <div className="kv">
+            <span className="muted"> Face distance</span>
+            <b>{ui.faceDistanceStatus}</b>
+          </div>
+          <div className="kv">
+            <span className="muted">Position status</span>
+            <b>{ui.facePositionStatus}</b>
+          </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
 
           <h3>Learner states</h3>
           <div className="grid">
