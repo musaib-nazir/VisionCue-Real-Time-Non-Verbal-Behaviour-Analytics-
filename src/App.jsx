@@ -1,5 +1,22 @@
-import StudentAttentionMonitor from "./StudentAttentionMonitor";
+import React, { useState } from "react";
+import StudentMode from "./modes/StudentMode";
+import InterviewMode from "./modes/InterviewMode";
+import ModeSelector from "./ModeSelector";
 
-export default function App() {
-  return <StudentAttentionMonitor />;
+function App() {
+  const [currentMode, setCurrentMode] = useState("student");
+
+  return (
+    <div>
+      <ModeSelector
+        currentMode={currentMode}
+        setCurrentMode={setCurrentMode}
+      />
+
+      {currentMode === "student" && <StudentMode />}
+      {currentMode === "interview" && <InterviewMode />}
+    </div>
+  );
 }
+
+export default App;
