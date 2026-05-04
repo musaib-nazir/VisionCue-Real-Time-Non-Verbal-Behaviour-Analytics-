@@ -1,5 +1,5 @@
 import { clamp, bs, pushTimedValue } from "./attentionTracking";
-import { dist } from "./raiseHandDetection";
+import { dist ,isValidHand} from "./raiseHandDetection";
 export function exclusiveThinkingBored(thinkingRaw, boredRaw) {
   let thinking = clamp(thinkingRaw);
   let bored = clamp(boredRaw);

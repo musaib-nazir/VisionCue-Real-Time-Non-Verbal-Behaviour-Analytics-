@@ -6,7 +6,7 @@ export const checkBrightness = ( brightness, badLightiningRef) => {
       let lightingSuggestion = "";
       let showLightingPopup = false;
 
-      if (brightness < 40) {
+      if (brightness < 50) {
         lightingStatus = "Too Dark ❌";
         lightingSuggestion = "Move closer to a light source";
 
