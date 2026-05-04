@@ -14,7 +14,9 @@ body {
   margin: 0;
   background: linear-gradient(180deg, #0b0f14, #0d1117);
   color: var(--text);
-  font: 14px/1.4 system-ui, sans-serif;
+  font:
+    14px/1.4 system-ui,
+    sans-serif;
 }
 
 button,
@@ -112,10 +114,10 @@ select {
   text-align: center;
   z-index: 10;
 
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
-video,
-.overlay {
+.videoWrap video,
+.videoWrap .overlay {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -184,7 +186,9 @@ video,
 
 .icon {
   font-size: 16px;
-  transition: opacity 0.2s ease, transform 0.15s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.15s ease;
 }
 
 .icon.active {
@@ -272,4 +276,431 @@ footer {
   .emo b {
     min-width: auto;
   }
+}
+
+.setup-screen {
+  min-height: 100vh;
+  background: #0b0f14;
+  color: #e6edf3;
+  padding: 30px;
+}
+
+.setup-screen h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 32px;
+}
+
+.setup-container {
+  display: grid;
+  grid-template-columns: 2fr 0.9fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.camera-panel,
+.checklist-panel,
+.readiness-panel {
+  background: #111827;
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+
+.camera-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-box {
+  width: 100%;
+
+  height: 420px;
+  margin-top: 20px;
+  border: 2px dashed #38bdf8;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0f1720;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check-item {
+  padding: 14px 0;
+  border-bottom: 1px solid #1f2937;
+}
+
+.check-item h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.check-item p {
+  margin: 4px 0;
+  color: #9fb0c3;
+  font-size: 14px;
+}
+
+.readiness-panel {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.readiness-panel p {
+  font-size: 28px;
+  font-weight: bold;
+  color: #38bdf8;
+}
+
+.start-btn {
+  display: block;
+  margin: 30px auto 0;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  background: #38bdf8;
+  color: #0b0f14;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.start-btn:hover {
+  transform: translateY(-2px);
+}
+.camera-video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  display: block;
+  border-radius: 12px;
+}
+
+.setup-screen {
+  min-height: 100vh;
+  background: #0b0f14;
+  padding: 28px;
+  color: var(--text);
+}
+.setup-screen h1 {
+  text-align: center;
+  margin: 0 0 30px;
+  font-size: 34px;
+  font-weight: 700;
+  color: #ffffff;
+} /* ========================================   MAIN LAYOUT======================================== */
+.setup-container {
+  display: grid;
+  grid-template-columns: 2fr 0.9fr;
+  gap: 24px;
+  align-items: start;
+} /* ========================================   PANELS======================================== */
+.camera-panel,
+.checklist-panel {
+  background: var(--panel);
+  border: 1px solid #1f2937;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.camera-header h2,
+.checklist-panel h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+} /* ========================================   CAMERA BOX======================================== */
+.camera-box {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  margin-top: 18px;
+  border: 2px dashed var(--accent);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+}
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+} /* ========================================   READINESS BADGE (ON VIDEO)======================================== */
+.readiness-badge {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 32, 0.92);
+  z-index: 50;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+/* Outer animated ring */
+.readiness-badge::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  z-index: 0;
+  animation: pulseRing 2s ease-in-out infinite;
+}
+
+/* Inner dark circle */
+.readiness-badge::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: #111827;
+  z-index: 1;
+}
+
+/* Text */
+.readiness-badge span {
+  position: relative;
+  z-index: 2;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ========================================
+   GREEN = GOOD
+======================================== */
+
+.readiness-badge.good::before {
+  background: conic-gradient(
+    #22c55e 0deg,
+    #22c55e 280deg,
+    #1f2937 280deg,
+    #1f2937 360deg
+  );
+}
+
+.readiness-badge.good span {
+  color: #22c55e;
+}
+
+/* ========================================
+   YELLOW = MEDIUM
+======================================== */
+
+.readiness-badge.medium::before {
+  background: conic-gradient(
+    #facc15 0deg,
+    #facc15 220deg,
+    #1f2937 220deg,
+    #1f2937 360deg
+  );
+}
+
+.readiness-badge.medium span {
+  color: #facc15;
+}
+
+/* ========================================
+   RED = BAD
+======================================== */
+
+.readiness-badge.bad::before {
+  background: conic-gradient(
+    #ef4444 0deg,
+    #ef4444 140deg,
+    #1f2937 140deg,
+    #1f2937 360deg
+  );
+}
+
+.readiness-badge.bad span {
+  color: #ef4444;
+}
+
+/* ========================================
+   PULSE ANIMATION
+======================================== */
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.04);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}/* ========================================   CHECKLIST PANEL======================================== */
+.checklist-panel {
+  height: 700px;
+  overflow-y: auto;
+}
+.check-item {
+  padding: 14px 0;
+  border-bottom: 1px solid #1f2937;
+}
+.check-item:last-child {
+  border-bottom: none;
+}
+.check-item h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #9fc8ff;
+}
+.check-item p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--muted);
+} /* ========================================   START BUTTON======================================== */
+.start-btn {
+  display: block;
+  margin: 28px auto 0;
+  padding: 14px 34px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #0b0f14;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+.start-btn:hover {
+  transform: translateY(-2px);
+} 
+.start-btn:disabled {
+  background: #374151;
+  color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.7;
+}
+
+/* ========================================   RESPONSIVE======================================== */
+@media (max-width: 960px) {
+  .setup-container {
+    grid-template-columns: 1fr;
+  }
+  .camera-box,
+  .checklist-panel {
+    height: auto;
+    min-height: 350px;
+  }
+  .setup-screen h1 {
+    font-size: 28px;
+  }
+  .readiness-badge {
+    width: 64px;
+    height: 64px;
+    top: 14px;
+    right: 14px;
+  }
+  .readiness-badge span {
+    font-size: 14px;
+  }
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.status-box {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border: 2px solid #4b5563;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  background: transparent;
+  color: transparent;
+}
+
+/* Green tick */
+.status-box.success {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+/* Red cross */
+.status-box.failed {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.guidance-box {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+  min-height: 58px;
+
+  display: flex;
+  align-items: center;
+
+  background: rgba(10, 15, 25, 0.88);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-left: 5px solid #ef4444;
+
+  padding: 14px 18px;
+  border-radius: 12px;
+
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+
+  z-index: 30;
+  backdrop-filter: blur(8px);
+
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.face-guide-overlay {
+  position: absolute;
+  width: 40%;
+  height: 60%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 16px;
+  border: 2px dashed rgba(255,255,255,0.4);
+  transition: all 0.25s ease;
+  pointer-events: none;
+}
+
+.face-guide-overlay.good {
+  border-color: #22c55e;
+  box-shadow: 0 0 20px rgba(34,197,94,0.4);
+}
+
+.face-guide-overlay.bad {
+  border-color: #ef4444;
+}
+
+.center-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  color: #9fb0c3;
+  opacity: 0.8;
 }

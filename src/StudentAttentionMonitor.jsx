@@ -523,8 +523,8 @@ export default function StudentAttentionMonitor() {
     }
     const processCanvas = newCanvas.current;
     const pctx = processCanvas.getContext("2d");
-    processCanvas.width = video.videoWidth;
-    processCanvas.height = video.videoHeight;
+    processCanvas.width = 640;
+    processCanvas.height = 360;
 
     const ctx = overlay.getContext("2d");
     const ts = performance.now();
@@ -693,8 +693,14 @@ export default function StudentAttentionMonitor() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "user",
-          width: { ideal: 960 },
+          width: { ideal: 1280 },
           height: { ideal: 720 },
+          // Also stabilize FPS
+    frameRate: { ideal: 30, max: 30 },
+
+    // Better consistency
+    aspectRatio: 16 / 9
+
         },
         audio: false,
       });

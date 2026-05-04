@@ -18,7 +18,7 @@ export const unevenLightingCheck = (lightingDifference, unevenLightingRef) => { 
         unevenLightingRef.current = null;
         ((showUnevenLightingPopup = false),
           (unevenLightingStatus = "Lighting balanced"));
-        unevenLightingSuggestion = "";
+        unevenLightingSuggestion = "Balanced";
 
         console.log("✅ Balanced Lighting");
       }
