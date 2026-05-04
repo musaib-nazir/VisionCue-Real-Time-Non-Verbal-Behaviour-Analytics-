@@ -1,0 +1,9 @@
+[33mfaefc83[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/musaib-work[m[33m)[m HEAD@{0}: pull --rebase origin musaib-work (start): checkout faefc83cd69bf25da05eb0ecfc2bdb860b544dde
+[33m8bd5799[m[33m ([m[1;32mmusaib-work[m[33m)[m HEAD@{1}: commit: setup screen finished
+[33m95034df[m HEAD@{2}: commit: seperated interview and student modueles
+[33m7f185ee[m HEAD@{3}: commit: Faceposition checkadded
+[33m8844898[m HEAD@{4}: commit: added face distance
+[33m84e84f1[m HEAD@{5}: commit: added uneven light detection
+[33m4a7e009[m HEAD@{6}: commit: Added brightness detection improvements
+[33m52a7057[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{7}: checkout: moving from main to musaib-work
+[33m52a7057[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m, [m[1;32mmain[m[33m)[m HEAD@{8}: clone: from https://code.simplyphi.com/experiments/body-language.git
