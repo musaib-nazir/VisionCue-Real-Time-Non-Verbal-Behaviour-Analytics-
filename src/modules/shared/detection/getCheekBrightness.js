@@ -1,61 +1,175 @@
-
+// modules/shared/detection/getCheekBrightness.js
 
 import { getBrightness } from "./getBrightness";
+import { cheekPoints } from "../../student/learnerStateAnalysis";
+
 export const getCheekBrightness = (
   pctx,
   landmarks,
   canvasWidth,
   canvasHeight,
-  cheekPoints,
+
 ) => {
 
+  // --------------------------------
+  // GET CHEEK LANDMARKS
+  // --------------------------------
+  const [leftCheek, rightCheek] =
+    cheekPoints(landmarks);
 
+  const leftX =
+    Math.floor(leftCheek.x * canvasWidth);
 
+  const leftY =
+    Math.floor(leftCheek.y * canvasHeight);
 
-      const [leftCheek, rightCheek] = cheekPoints(landmarks);
-      const leftX = Math.floor(leftCheek.x * canvasWidth);
-      const leftY = Math.floor(leftCheek.y * canvasHeight);
-      const rightX = Math.floor(rightCheek.x * canvasWidth);
-      const rightY = Math.floor(rightCheek.y * canvasHeight);
-      const boxSize = 35;
-      const halfBox = Math.floor(boxSize / 2);
-      const leftBoxX = leftX - halfBox;
-      const leftBoxY = leftY - halfBox;
-      const rightBoxX = rightX - halfBox;
-      const rightBoxY = rightY - halfBox;
-      console.log("Left box:", leftBoxX, leftBoxY);
-      console.log("Right box:", rightBoxX, rightBoxY);
+  const rightX =
+    Math.floor(rightCheek.x * canvasWidth);
 
+  const rightY =
+    Math.floor(rightCheek.y * canvasHeight);
 
+  // --------------------------------
+  // SMALLER SAMPLE REGION
+  // --------------------------------
+  const boxSize = 18;
 
-      const leftCheekRegion = pctx.getImageData(
-        leftBoxX,
-        leftBoxY,
-        boxSize,
-        boxSize,
-      );
-      const rightCheekRegion = pctx.getImageData(
-        rightBoxX,
-        rightBoxY,
-        boxSize,
-        boxSize,
-      );
-      console.log("Left cheek region:", leftCheekRegion);
-      console.log("Right cheek region:", rightCheekRegion);
-      const leftBrightness = getBrightness(leftCheekRegion);
-      const rightBrightness = getBrightness(rightCheekRegion);
-      console.log("Left Cheek Brightness:", leftBrightness);
-      console.log("Right Cheek Brightness:", rightBrightness);
+  const halfBox =
+    Math.floor(boxSize / 2);
 
-      const lightingDifference = Math.abs(leftBrightness - rightBrightness);
+  const leftBoxX =
+    leftX - halfBox;
 
-      console.log("Lighting Difference:", lightingDifference);
+  const leftBoxY =
+    leftY - halfBox;
 
- return{
+  const rightBoxX =
+    rightX - halfBox;
 
-     leftBrightness,
-    rightBrightness,
+  const rightBoxY =
+    rightY - halfBox;
+
+  // --------------------------------
+  // SAFE CLAMPING
+  // --------------------------------
+  const safeLeftBoxX =
+    Math.max(
+      0,
+      Math.min(leftBoxX, canvasWidth - boxSize)
+    );
+
+  const safeLeftBoxY =
+    Math.max(
+      0,
+      Math.min(leftBoxY, canvasHeight - boxSize)
+    );
+
+  const safeRightBoxX =
+    Math.max(
+      0,
+      Math.min(rightBoxX, canvasWidth - boxSize)
+    );
+
+  const safeRightBoxY =
+    Math.max(
+      0,
+      Math.min(rightBoxY, canvasHeight - boxSize)
+    );
+
+  console.log(
+    "Left box:",
+    safeLeftBoxX,
+    safeLeftBoxY
+  );
+
+  console.log(
+    "Right box:",
+    safeRightBoxX,
+    safeRightBoxY
+  );
+
+  // --------------------------------
+  // GET IMAGE REGIONS
+  // --------------------------------
+  const leftCheekRegion =
+    pctx.getImageData(
+      safeLeftBoxX,
+      safeLeftBoxY,
+      boxSize,
+      boxSize,
+    );
+
+  const rightCheekRegion =
+    pctx.getImageData(
+      safeRightBoxX,
+      safeRightBoxY,
+      boxSize,
+      boxSize,
+    );
+
+  // --------------------------------
+  // BRIGHTNESS
+  // --------------------------------
+  const leftBrightness =
+    getBrightness(leftCheekRegion);
+
+  const rightBrightness =
+    getBrightness(rightCheekRegion);
+
+  console.log(
+    "Left Cheek Brightness:",
+    leftBrightness
+  );
+
+  console.log(
+    "Right Cheek Brightness:",
+    rightBrightness
+  );
+
+  // --------------------------------
+  // STABILIZE EXTREMES
+  // --------------------------------
+  const adjustedLeft =
+    Math.max(leftBrightness, 25);
+
+  const adjustedRight =
+    Math.max(rightBrightness, 25);
+
+  // --------------------------------
+  // DIFFERENCE
+  // --------------------------------
+  const lightingDifference =
+    Math.abs(adjustedLeft - adjustedRight);
+
+  const avg =
+    (adjustedLeft + adjustedRight) / 2;
+
+  let lightingDifferencePercent =
+    (lightingDifference / avg) * 100;
+
+  // --------------------------------
+  // CLAMP INSANE VALUES
+  // --------------------------------
+  lightingDifferencePercent =
+    Math.min(lightingDifferencePercent, 100);
+
+  console.log(
+    "Lighting Difference:",
+    lightingDifference
+  );
+
+  console.log(
+    "Lighting Difference %:",
+    lightingDifferencePercent
+  );
+
+  // --------------------------------
+  // RETURN
+  // --------------------------------
+  return {
+    leftBrightness: adjustedLeft,
+    rightBrightness: adjustedRight,
     lightingDifference,
- }
-
+    lightingDifferencePercent,
+  };
 };

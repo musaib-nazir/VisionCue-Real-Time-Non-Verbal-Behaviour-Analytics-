@@ -3,16 +3,20 @@ import { checkBrightness } from "./modules/shared/check/brightnesscheck";
 import { checkFacePosition } from "./modules/shared/check/facepositioncheck";
 import { facedistancecheck } from "./modules/shared/check/facedistancecheck";
 import { unevenLightingCheck } from "./modules/shared/check/unevenlightingcheck";
-
+import { occlusionCheck } from "./modules/shared/check/occlusionCheck";
+import { blurCheck } from "./modules/shared/check/blurcheck";
+import { getMultiFaceMetrics } from "./modules/shared/detection/getMultiFaceMetrics";
+import { multiFaceCheck } from "./modules/shared/check/multiFaceCheck";
 //imprt detection:
 import { getBrightness } from "./modules/shared/detection/getBrightness";
 
 import { getFaceBrightness } from "./modules/shared/detection/getFaceBrightness";
 import { getfacebox } from "./modules/shared/detection/getFacebox";
-import { getCheekBrightness } from "./modules/shared/detection/getcheekBrightness";
+import { getCheekBrightness } from "./modules/shared/detection/getCheekBrightness";
 import { getFaceArea } from "./modules/shared/detection/getFaceArea";
 import { getFaceCenter } from "./modules/shared/detection/getFaceCenter";
-
+import { getOcclusionMetrics } from "./modules/shared/detection/getOcclusionMetrics";
+import { getBlurScore } from "./modules/shared/detection/getBlurScore";
 //studentimnports:
 import {
   computeAttention,
@@ -99,7 +103,18 @@ const INITIAL_UI = {
   facePositionSuggestion:
     "Checking if your face is well positioned in the frame...",
   showFacePositionPopup: false,
-
+occlusionStatus: "Checking occlusion...",
+occlusionSuggestion: "Checking if your face is fully visible...",
+showOcclusionPopup: false,
+  blurScore: 0,
+  blurStatus: "Checking focus...",
+  blurSuggestion: "Checking if the camera image is sharp...",
+  showBlurPopup: false,
+    lightingDifferencePercent: 0,
+ multiFaceStatus: "Checking for multiple faces...",
+    multiFaceSuggestion: "Checking if there are multiple faces in view...",
+    showMultiFacePopup: false,
+    faceCount:0,
   fps: "fps: --",
   learner: INITIAL_LEARNER,
   gestureLevels: { raiseHand: 0, agree: 0, disagree: 0 },
@@ -382,6 +397,10 @@ export default function StudentAttentionMonitor() {
   const faceDistRef = useRef(null);
   const facePostRef = useRef(null);
   const runningRef = useRef(false);
+  const occlusionRef = useRef(null);
+  const multiFaceRef = useRef(null);
+  const blurRef = useRef(null);
+const prevFaceAreaRef = useRef(null);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
   const runtimeRef = useRef(createRuntimeState());
@@ -421,7 +440,7 @@ export default function StudentAttentionMonitor() {
           "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
       },
       runningMode: "VIDEO",
-      numFaces: 1,
+      numFaces: 5,
       outputFaceBlendshapes: true,
       outputFacialTransformationMatrixes: true,
     });
@@ -539,22 +558,41 @@ export default function StudentAttentionMonitor() {
       const canvasWidth = processCanvas.width;
       const canvasHeight = processCanvas.height;
       pctx.drawImage(video, 0, 0, processCanvas.width, processCanvas.height);
+      //multiple face detection:
+      const multiFaceMetrics = getMultiFaceMetrics(
+  face.faceLandmarks
+);
+
+const {
+  multiFaceStatus,
+  multiFaceSuggestion,
+  showMultiFacePopup,
+  faceCount,
+} = multiFaceCheck(multiFaceMetrics, multiFaceRef);
 
       //uneven lightening
-      const { leftBrightness, rightBrightness, lightingDifference } =
+      const {
+  leftBrightness,
+  rightBrightness,
+  lightingDifference,
+  lightingDifferencePercent,
+}=
         getCheekBrightness(
           pctx,
           landmarks,
           canvasWidth,
           canvasHeight,
-          cheekPoints,
+         
         );
 
       const {
-        unevenLightingStatus,
-        unevenLightingSuggestion,
-        showUnevenLightingPopup,
-      } = unevenLightingCheck(lightingDifference, unevenLightingRef);
+  unevenLightingStatus,
+  unevenLightingSuggestion,
+  showUnevenLightingPopup,
+} = unevenLightingCheck(
+  lightingDifferencePercent,
+  unevenLightingRef
+);
 
       //  brightness detection and facebox cal
       const { minX, maxX, minY, maxY, x1, x2, y1, y2, faceWidth, faceHeight } =
@@ -564,8 +602,25 @@ export default function StudentAttentionMonitor() {
       console.log("Brightness:", brightness);
       const { lightingStatus, lightingSuggestion, showLightingPopup } =
         checkBrightness(brightness, badLightiningRef);
+      const blurScore = getBlurScore(pctx, x1, y1, faceWidth, faceHeight);
+      const { blurStatus, blurSuggestion, showBlurPopup } = blurCheck(
+        blurScore,
+        blurRef,
+      );
       //Face Size / Distance Check
       const { FWidth, FHeight, FaceArea } = getFaceArea(minX, maxX, minY, maxY);
+
+const metrics = getOcclusionMetrics({landmarks,hands:hands?.landmarks,  faceBox: { minX, maxX, minY, maxY, FaceArea },  prevFaceArea: prevFaceAreaRef.current,})
+
+
+prevFaceAreaRef.current = FaceArea;
+const {
+  occlusionStatus,
+  occlusionSuggestion,
+  showOcclusionPopup,
+} = occlusionCheck(metrics, occlusionRef);
+
+
       const {
         faceDistanceStatus,
         faceDistanceSuggestion,
@@ -579,6 +634,7 @@ export default function StudentAttentionMonitor() {
         minY,
         maxY,
       );
+
 
       const {
         facePositionStatus,
@@ -621,11 +677,23 @@ export default function StudentAttentionMonitor() {
         facePositionstatus: facePositionStatus,
         facePositionSuggestion: facePositionSuggestion,
         showFacePositionPopup: showFacePositionPopup,
+occlusionStatus: occlusionStatus,
+occlusionSuggestion: occlusionSuggestion,
+showOcclusionPopup: showOcclusionPopup,
+        blurScore: Math.round(blurScore),
+        blurStatus: blurStatus,
+        blurSuggestion: blurSuggestion,
+        showBlurPopup: showBlurPopup,
+         multiFaceStatus: multiFaceStatus,
+  multiFaceSuggestion:multiFaceSuggestion,
+  showMultiFacePopup: showMultiFacePopup,
+  faceCount:faceCount,
       }));
       if (
         showLightingPopup ||
         showUnevenLightingPopup ||
-        showFaceDistancePopup
+        showFaceDistancePopup||showFacePositionPopup  || showOcclusionPopup ||
+        showBlurPopup||showMultiFacePopup
       ) {
         updateFps();
         frameRef.current = requestAnimationFrame(loop);
@@ -781,7 +849,22 @@ export default function StudentAttentionMonitor() {
               <p>Waiting for balanced lighting...</p>
             </div>
           )}
-
+{ui.showOcclusionPopup && (
+  <div className="lightingPopup">
+    <h2>Face Occlusion Detected</h2>
+    <p>Your face is partially blocked.</p>
+    <p>{ui.occlusionSuggestion}</p>
+    <p>Waiting for a clear view...</p>
+  </div>
+)}
+          {ui.showBlurPopup && (
+            <div className="lightingPopup">
+              <h2>Blurry Camera Detected</h2>
+              <p>Your face is not sharp enough for reliable analysis.</p>
+              <p>{ui.blurSuggestion}</p>
+              <p>Waiting for a clearer image...</p>
+            </div>
+          )}
           {ui.showFaceDistancePopup && (
             <div className="lightingPopup">
               <h1>Face Distance Issue Detected </h1>
@@ -797,7 +880,16 @@ export default function StudentAttentionMonitor() {
                 </p>
               )}
             </div>
+            
+            
           )}
+          {ui.showMultiFacePopup && (
+  <div className="lightingPopup">
+    <h2>Multiple Faces Detected</h2>
+    <p>{ui.multiFaceSuggestion}</p>
+    <p>Only one person should be visible.</p>
+  </div>
+)}
         </section>
 
         <aside className="card pane">
@@ -833,21 +925,45 @@ export default function StudentAttentionMonitor() {
             <span className="muted">Light Balance</span>
             <b>{ui.unevenLightingStatus}</b>
           </div>
-
+<div className="kv">
+  <span className="muted">Balance status</span>
+  <b>{ui.lightingBalance}</b>
+</div>
           <div className="kv">
             <span className="muted">Balance Suggestion</span>
             <b>{ui.unevenLightingSuggestion}</b>
           </div>
+          <div className="kv">
+  <span className="muted">Balance %</span>
+  <b>
+  {ui.lightingDifferencePercent?.toFixed(1) || "0.0"}%
+</b>
+</div>
 
           <div className="kv">
             <span className="muted"> Face distance</span>
             <b>{ui.faceDistanceStatus}</b>
           </div>
           <div className="kv">
+  <span className="muted">Faces</span>
+  <b>{ui.multiFaceStatus}</b>
+</div>
+          <div className="kv">
             <span className="muted">Position status</span>
             <b>{ui.facePositionStatus}</b>
           </div>
-
+<div className="kv">
+  <span className="muted">Occlusion</span>
+  <b>{ui.occlusionStatus}</b>
+</div>
+          <div className="kv">
+            <span className="muted">Focus</span>
+            <b>{ui.blurStatus}</b>
+          </div>
+          <div className="kv">
+            <span className="muted">Sharpness</span>
+            <b>{ui.blurScore}</b>
+          </div>
           <h3>Learner states</h3>
           <div className="grid">
             <div>

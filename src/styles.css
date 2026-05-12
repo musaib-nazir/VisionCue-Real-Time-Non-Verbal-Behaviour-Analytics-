@@ -704,3 +704,14 @@ footer {
   color: #f7f8fa;
   opacity: 0.8;
 }
+.check-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.check-message {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #b8c0cc;
+  opacity: 0.9;
+}

@@ -7,7 +7,9 @@ import { getFaceBrightness } from "../modules/shared/detection/getFaceBrightness
 import { checkBrightness } from "../modules/shared/check/brightnesscheck.js";
 import { facedistancecheck } from "../modules/shared/check/facedistancecheck.js";
 import { unevenLightingCheck } from "../modules/shared/check/unevenlightingcheck.js";
+import { blurCheck } from "../modules/shared/check/blurcheck.js";
 import { getCheekBrightness } from "../modules/shared/detection/getcheekBrightness.js";
+import { getBlurScore } from "../modules/shared/detection/getBlurScore.js";
 import { cheekPoints } from "../modules/student/learnerStateAnalysis.js";
 
 export default function SetupScreen({ onStart }) {
@@ -16,6 +18,7 @@ export default function SetupScreen({ onStart }) {
   const processCanvasRef = useRef(null);
 const badLightingRef = useRef(null);
 const faceDistanceRef = useRef(null);
+const blurRef = useRef(null);
 const [isFaceInsideGuide, setIsFaceInsideGuide] = useState(false);
 
 const unevenLightingRef = useRef(null);
@@ -61,6 +64,13 @@ const unevenLightingRef = useRef(null);
     title: "Face Centered",
     passed: false,
     message: "Align your face in the center",
+    required: true,
+  },
+  {
+    id: 7,
+    title: "Camera Focus",
+    passed: false,
+    message: "Keep the camera image sharp",
     required: true,
   },
 ]);
@@ -194,9 +204,9 @@ setChecks(prev=>prev.map(item=>
 
 }
 
-function  runBalancedLightingCheck(landmarks){
+function runBalancedLightingCheck(landmarks) {
 
-const video = vidRef.current;
+  const video = vidRef.current;
   const canvas = processCanvasRef.current;
 
   if (!video || !canvas || video.readyState < 2) return;
@@ -207,40 +217,57 @@ const video = vidRef.current;
   canvas.height = video.videoHeight;
 
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
   const {
     leftBrightness,
     rightBrightness,
-    lightingDifference,
+    lightingDifferencePercent,
   } = getCheekBrightness(
     ctx,
     landmarks,
     canvas.width,
     canvas.height,
-    cheekPoints 
+    cheekPoints
   );
 
   const {
-    unevenLightingStatus,
-    unevenLightingSuggestion,
-  } = unevenLightingCheck(
-    lightingDifference,
-    unevenLightingRef
-  );
-const isBad = lightingDifference > 40;
-console.log("Lighting Difference:", lightingDifference);
-console.log("Balanced Status:", isBad);
-setChecks(prev =>
-  prev.map(item =>
-    item.id === 4
-      ? {
-          ...item,
-          passed: !isBad,
-          message: unevenLightingSuggestion,
-        }
-      : item
-  )
+  unevenLightingStatus,
+  unevenLightingSuggestion,
+  showUnevenLightingPopup,
+  severity,
+} = unevenLightingCheck(
+  lightingDifferencePercent,
+  unevenLightingRef
 );
 
+  console.log(
+    "Lighting Difference %:",
+    lightingDifferencePercent
+  );
+
+  console.log(
+    "Lighting Status:",
+    unevenLightingStatus
+  );
+
+  // ---------------------------------
+  // PASS RULE
+  // ---------------------------------
+ const isGood = true;
+  
+  setChecks(prev =>
+    prev.map(item =>
+      item.id === 4
+        ? {
+            ...item,
+            passed: isGood,
+          message: unevenLightingSuggestion,
+
+severity,
+          }
+        : item
+    )
+  );
 }
 
 
@@ -329,7 +356,38 @@ console.log("Lighting Status:", lightingStatus);
     )
   );
 }
-const priorityOrder = [2, 3, 4, 5, 6];
+function runBlurCheck(landmarks) {
+  const video = vidRef.current;
+  const canvas = processCanvasRef.current;
+
+  if (!video || !canvas || video.readyState < 2) return;
+
+  const ctx = canvas.getContext("2d");
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const { x1, y1, faceWidth, faceHeight } = getfacebox(
+    landmarks,
+    canvas.width,
+    canvas.height
+  );
+
+  const blurScore = getBlurScore(ctx, x1, y1, faceWidth, faceHeight);
+  const { blurStatus, blurSuggestion } = blurCheck(blurScore, blurRef);
+  const isSharp = blurStatus === "Image sharp";
+
+  setChecks(prev =>
+    prev.map(item =>
+      item.id === 7
+        ? { ...item, passed: isSharp, message: blurSuggestion }
+        : item
+    )
+  );
+}
+const priorityOrder = [2, 3, 4, 5, 6, 7];
 
 const failedCheck = priorityOrder
   .map(id => checks.find(c => c.id === id))
@@ -352,6 +410,7 @@ interval = setInterval(() => {
     runDistanceCheck(landmarks);
     runBalancedLightingCheck(landmarks) 
      runFaceCenterCheck(landmarks);
+     runBlurCheck(landmarks);
 }, 1000);
   }
 
@@ -414,8 +473,12 @@ interval = setInterval(() => {
         <div className="checklist-panel">
           <h2>Readiness Checklist</h2>
 {checks.map((item) => (
-  <div key={item.id} className="check-item">
+  <div key={item.id} className={`check-item ${
+    item.severity ? item.severity : ""
+  }`}>
+
     <div className="check-row">
+
       <div
         className={`status-box ${
           item.passed === true
@@ -425,11 +488,23 @@ interval = setInterval(() => {
             : ""
         }`}
       >
-        {item.passed === true ? "✓" : item.passed === false ? "✗" : ""}
+        {item.passed === true
+          ? "✓"
+          : item.passed === false
+          ? "✗"
+          : ""}
       </div>
 
-      <h3>{item.title}</h3>
+      <div className="check-content">
+        <h3>{item.title}</h3>
+
+        <p className="check-message">
+          {item.message}
+        </p>
+      </div>
+
     </div>
+
   </div>
 ))}
         </div>

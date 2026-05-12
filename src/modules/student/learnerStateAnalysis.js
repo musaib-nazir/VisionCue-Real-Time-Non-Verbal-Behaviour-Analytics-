@@ -222,16 +222,31 @@ export function mouthCenter(faceLM) {
   return { x: (minx + maxx) / 2, y: miny + (maxy - miny) * 0.7 };
 }
 export function cheekPoints(faceLM) {
+
   if (!faceLM?.length) {
     return [
-      { x: 0.42, y: 0.58 },
-      { x: 0.58, y: 0.58 },
+      { x: 0.46, y: 0.52 },
+      { x: 0.54, y: 0.52 },
     ];
   }
 
   return [
-    faceLM[205] || faceLM[187] || faceLM[0],
-    faceLM[425] || faceLM[411] || faceLM[0],
+
+    // left upper inner cheek
+    faceLM[117] ||
+
+    // fallback
+    faceLM[118] ||
+    faceLM[50] ||
+    faceLM[0],
+
+    // right upper inner cheek
+    faceLM[346] ||
+
+    // fallback
+    faceLM[347] ||
+    faceLM[280] ||
+    faceLM[0],
   ];
 }
 export function recentChangeDeg(runtime, key) {
