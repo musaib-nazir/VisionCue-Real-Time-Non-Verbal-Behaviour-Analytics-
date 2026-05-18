@@ -200,6 +200,80 @@ select {
   color: var(--muted);
 }
 
+.sessionReport {
+  margin: 0 16px 16px;
+  padding: 16px;
+}
+
+.sessionReportHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sessionReportHeader h2 {
+  margin: 0 0 4px;
+}
+
+.reportScore {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #cfe6ff;
+}
+
+.reportGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.reportMetric {
+  min-height: 68px;
+  padding: 10px;
+  border: 1px solid #1c2a3a;
+  border-radius: 8px;
+  background: #0b1320;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.reportMetric b {
+  color: #e7f3ff;
+  font-size: 18px;
+}
+
+.reportColumns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.reportColumns h3 {
+  margin-top: 0;
+}
+
+.reportRow {
+  padding: 4px 0;
+}
+
+.reportList {
+  margin: 0;
+  padding-left: 18px;
+  color: #cfe6ff;
+}
+
+.reportList li {
+  margin: 6px 0;
+}
+
 .count {
   min-width: 24px;
   font-size: 12px;
@@ -266,6 +340,19 @@ footer {
   }
 
   .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sessionReportHeader {
+    flex-direction: column;
+  }
+
+  .reportScore {
+    align-items: flex-start;
+  }
+
+  .reportGrid,
+  .reportColumns {
     grid-template-columns: 1fr;
   }
 

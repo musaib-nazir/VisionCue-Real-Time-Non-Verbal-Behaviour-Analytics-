@@ -19,6 +19,7 @@ import { getOcclusionMetrics } from "./modules/shared/detection/getOcclusionMetr
 import { getBlurScore } from "./modules/shared/detection/getBlurScore";
 
 import { videoQualityEngine } from "./modules/shared/Engine/videoQualityEngine";
+import { createSessionTracker } from "./modules/shared/session/createSessionTracker";
 
 
 
@@ -172,16 +173,24 @@ function createRuntimeState() {
     emaUp: createEMA(0.7),
     emaDown: createEMA(0.5),
     emaRaiseHand: createEMA(0.6),
+    emaNod: createEMA(0.65),
+    emaShake: createEMA(0.65),
     attnEMA: createEMA(0.85),
     thumbUpLevel: 0,
     thumbDownLevel: 0,
     raiseHandLevel: 0,
+    nodLevel: 0,
+    shakeLevel: 0,
     thumbUpCount: 0,
     thumbDownCount: 0,
     raiseHandCount: 0,
+    nodAgreeCount: 0,
+    shakeDisagreeCount: 0,
     prevUpActive: false,
     prevDownActive: false,
     prevRaiseHandActive: false,
+    prevNodActive: false,
+    prevShakeActive: false,
     sparkBuf: new Array(180).fill(0),
     frames: 0,
     lastFpsUpdate: performance.now(),
@@ -423,8 +432,10 @@ const prevFaceAreaRef = useRef(null);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
   const runtimeRef = useRef(createRuntimeState());
+  const sessionRef = useRef(createSessionTracker());
   const [ui, setUi] = useState(INITIAL_UI);
   const [overlayVisible, setOverlayVisible] = useState(true);
+  const [sessionReport, setSessionReport] = useState(null);
 
   overlayVisibleRef.current = overlayVisible;
 
@@ -508,13 +519,13 @@ const prevFaceAreaRef = useRef(null);
       learner: nextLearner,
       gestureLevels: {
         raiseHand: runtime.raiseHandLevel,
-        agree: runtime.thumbUpLevel,
-        disagree: runtime.thumbDownLevel,
+        agree: Math.max(runtime.thumbUpLevel, runtime.nodLevel),
+        disagree: Math.max(runtime.thumbDownLevel, runtime.shakeLevel),
       },
       gestureCounts: {
         raiseHand: runtime.raiseHandCount,
-        agree: runtime.thumbUpCount,
-        disagree: runtime.thumbDownCount,
+        agree: runtime.thumbUpCount + runtime.nodAgreeCount,
+        disagree: runtime.thumbDownCount + runtime.shakeDisagreeCount,
       },
     }));
   }
@@ -708,6 +719,17 @@ blurQualityScore,
       showFaceDistancePopup,
       faceDistanceType,
   });
+
+const qualityIssueFlags = {
+  poorLighting:
+    severity === "poor" ||
+    brightnessSeverity === "poor",
+  blur: blurSeverity === "poor",
+  faceDistance: showFaceDistancePopup,
+  occlusion: occlusionSeverity === "poor",
+  multipleFaces: showMultiFacePopup,
+};
+
       if (overlayVisibleRef.current) {
         drawFace(ctx, overlay, face.faceLandmarks[0]);
         drawHands(ctx, overlay, hands?.landmarks);
@@ -774,6 +796,11 @@ const shouldBlockAnalysis =
 
 if (shouldBlockAnalysis)
 {
+  sessionRef.current.recordFrame({
+    quality,
+    qualityIssueFlags,
+  });
+
   updateFps();
 
   frameRef.current =
@@ -813,9 +840,30 @@ if (shouldBlockAnalysis)
         face.faceLandmarks[0],
         hands?.landmarks,
       );
+      runtime.nodLevel = runtime.emaNod(learnerRaw.Agreeing || 0);
+      const nodActive = runtime.nodLevel >= 0.45;
+      if (nodActive && !runtime.prevNodActive) runtime.nodAgreeCount += 1;
+      runtime.prevNodActive = nodActive;
+      runtime.shakeLevel = runtime.emaShake(learnerRaw.Disagreeing || 0);
+      const shakeActive = runtime.shakeLevel >= 0.45;
+      if (shakeActive && !runtime.prevShakeActive)
+        runtime.shakeDisagreeCount += 1;
+      runtime.prevShakeActive = shakeActive;
       learnerRaw.RaiseHand = runtime.raiseHandLevel;
       pushLearnerStates(runtime, learnerRaw);
-      updateUi(attn, getAggregatedLearnerStates(runtime));
+      const aggregatedLearner = getAggregatedLearnerStates(runtime);
+      updateUi(attn, aggregatedLearner);
+      sessionRef.current.recordFrame({
+        attention: attn,
+        learner: aggregatedLearner,
+        quality,
+        gestureCounts: {
+          raiseHand: runtime.raiseHandCount,
+          agree: runtime.thumbUpCount + runtime.nodAgreeCount,
+          disagree: runtime.thumbDownCount + runtime.shakeDisagreeCount,
+        },
+        qualityIssueFlags,
+      });
     } else {
       const ctx2 = overlay.getContext("2d");
       ctx2.clearRect(0, 0, overlay.width, overlay.height);
@@ -835,6 +883,8 @@ if (shouldBlockAnalysis)
     try {
       stopStream();
       runtimeRef.current = createRuntimeState();
+      sessionRef.current.reset();
+      setSessionReport(null);
       setUi(INITIAL_UI);
       const video = videoRef.current;
       const overlay = overlayRef.current;
@@ -871,6 +921,10 @@ if (shouldBlockAnalysis)
   }
 
   function stop() {
+    const report = sessionRef.current.createReport();
+    if (report) {
+      setSessionReport(report);
+    }
     stopStream();
   }
 
@@ -1141,12 +1195,104 @@ if (shouldBlockAnalysis)
         </aside>
       </main>
 
+      {sessionReport && <SessionReport report={sessionReport} />}
+
       <footer>
         <span className="tiny">
           Inference is approximate; use responsibly. This is not a diagnostic or
           proctoring tool.
         </span>
       </footer>
+    </div>
+  );
+}
+
+function formatPercent(value) {
+  if (value === null || value === undefined) return "N/A";
+  return `${Math.round(value * 100)}%`;
+}
+
+function formatTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SessionReport({ report }) {
+  const totalQualityIssues = Object.values(report.qualityIssues).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+
+  return (
+    <section className="card sessionReport">
+      <div className="sessionReportHeader">
+        <div>
+          <h2>Session Report</h2>
+          <p className="muted tiny">
+            {formatTime(report.startedAt)} - {formatTime(report.endedAt)}
+          </p>
+        </div>
+        <div className="reportScore">
+          {formatPercent(report.averageAttention)}
+          <span className="muted tiny">avg attention</span>
+        </div>
+      </div>
+
+      <div className="reportGrid">
+        <ReportMetric label="Duration" value={`${report.durationSeconds}s`} />
+        <ReportMetric label="Lowest attention" value={formatPercent(report.minAttention)} />
+        <ReportMetric label="Highest attention" value={formatPercent(report.maxAttention)} />
+        <ReportMetric label="Top state" value={report.topLearnerState} />
+        <ReportMetric label="Blocked time" value={`${report.blockedSeconds}s`} />
+        <ReportMetric label="Quality issue samples" value={totalQualityIssues} />
+      </div>
+
+      <div className="reportColumns">
+        <div>
+          <h3>Gestures</h3>
+          <ReportRow label="Raise hand" value={report.gestureCounts.raiseHand} />
+          <ReportRow label="Agreeing" value={report.gestureCounts.agree} />
+          <ReportRow label="Disagreeing" value={report.gestureCounts.disagree} />
+        </div>
+
+        <div>
+          <h3>Quality Issues</h3>
+          <ReportRow label="Poor lighting" value={report.qualityIssues.poorLighting} />
+          <ReportRow label="Blur" value={report.qualityIssues.blur} />
+          <ReportRow label="Face distance" value={report.qualityIssues.faceDistance} />
+          <ReportRow label="Occlusion" value={report.qualityIssues.occlusion} />
+          <ReportRow label="Multiple faces" value={report.qualityIssues.multipleFaces} />
+        </div>
+
+        <div>
+          <h3>Recommendations</h3>
+          <ul className="reportList">
+            {report.recommendations.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReportMetric({ label, value }) {
+  return (
+    <div className="reportMetric">
+      <span className="muted tiny">{label}</span>
+      <b>{value}</b>
+    </div>
+  );
+}
+
+function ReportRow({ label, value }) {
+  return (
+    <div className="kv reportRow">
+      <span className="muted">{label}</span>
+      <b>{value}</b>
     </div>
   );
 }

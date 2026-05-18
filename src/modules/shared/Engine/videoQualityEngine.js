@@ -251,9 +251,7 @@ if (brightnessSeverity === "poor") {
   };
 }
 
-// --------------------------------
-// BLUR
-// --------------------------------
+ 
 else if (blurSeverity === "poor") {
 
   activePopup = {
