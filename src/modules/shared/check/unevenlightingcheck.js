@@ -1,19 +1,38 @@
 // modules/shared/check/unevenLightingCheck.js
 
 export const unevenLightingCheck = (
-  lightingDifferencePercent,
+  {
+    leftBrightness,
+    rightBrightness,
+    lightingDifferencePercent,
+  },
   unevenLightingRef
 ) => {
 
-  let showUnevenLightingPopup = false;
-
+  // --------------------------------
+  // UI OUTPUT
+  // --------------------------------
   let unevenLightingStatus = "";
+
   let unevenLightingSuggestion = "";
 
-  // -------------------------------
+  let showUnevenLightingPopup = false;
+
+  // --------------------------------
+  // LIGHTING QUALITY SCORE
+  // --------------------------------
+  let lightingQualityScore = 100;
+
+  // --------------------------------
+  // SEVERITY
+  // --------------------------------
+  let severity = "excellent";
+
+  // --------------------------------
   // INIT MEMORY
-  // -------------------------------
+  // --------------------------------
   if (!unevenLightingRef.current) {
+
     unevenLightingRef.current = {
       startTime: null,
     };
@@ -21,116 +40,164 @@ export const unevenLightingCheck = (
 
   const memory = unevenLightingRef.current;
 
-  // -------------------------------
+  // --------------------------------
   // BALANCED LIGHTING
-  // -------------------------------
-  if (lightingDifferencePercent <= 20) {
+  // --------------------------------
+  if (lightingDifferencePercent <= 30) {
 
     memory.startTime = null;
 
-    unevenLightingStatus =
-      "Lighting Balanced ✅";
-
-    unevenLightingSuggestion =
-      "Lighting is well balanced.";
-
-    console.log("✅ Balanced Lighting");
   }
 
-  // -------------------------------
-  // SLIGHTLY UNEVEN
-  // -------------------------------
+  // --------------------------------
+  // UNEVEN BUT USABLE
+  // --------------------------------
   else if (
-    lightingDifferencePercent > 20 &&
-    lightingDifferencePercent <= 35
+    lightingDifferencePercent > 30 &&
+    lightingDifferencePercent <= 65
   ) {
 
     memory.startTime = null;
 
-    unevenLightingStatus =
-      "Slightly Uneven Lighting ⚠";
+    lightingQualityScore -= 10;
 
-    unevenLightingSuggestion =
-      "Lighting is slightly uneven but still acceptable.";
-
-    console.log("⚠ Slightly Uneven Lighting");
   }
 
-  // -------------------------------
-  // MODERATELY UNEVEN
-  // -------------------------------
-  else if (
-    lightingDifferencePercent > 35 &&
-    lightingDifferencePercent <= 55
-  ) {
-
-    memory.startTime = null;
-
-    unevenLightingStatus =
-      "Uneven Lighting ⚠";
-
-    unevenLightingSuggestion =
-      "Try balancing lighting for better analysis quality.";
-
-    console.log("⚠ Uneven Lighting");
-  }
-
-  // -------------------------------
-  // SEVERE UNEVEN LIGHTING
-  // -------------------------------
+  // --------------------------------
+  // CHALLENGING LIGHTING
+  // --------------------------------
   else {
 
+    lightingQualityScore -= 20;
+
+  }
+
+  // --------------------------------
+  // SCORE → SEVERITY
+  // --------------------------------
+  if (lightingQualityScore >= 90) {
+
+    severity = "excellent";
+  }
+
+  else if (lightingQualityScore >= 75) {
+
+    severity = "good";
+  }
+
+  else if (lightingQualityScore >= 55) {
+
+    severity = "acceptable";
+  }
+
+  else if (lightingQualityScore >= 35) {
+
+    severity = "challenging";
+  }
+
+  else {
+
+    severity = "poor";
+  }
+
+  // --------------------------------
+  // HUMAN STATUS GENERATION
+  // --------------------------------
+  switch (severity) {
+
+    case "excellent":
+
+      unevenLightingStatus =
+        "Excellent Lighting Balance ✅";
+
+      unevenLightingSuggestion =
+        "Lighting is evenly distributed.";
+
+      break;
+
+    case "good":
+
+      unevenLightingStatus =
+        "Good Lighting Balance ✅";
+
+      unevenLightingSuggestion =
+        "Lighting balance is suitable.";
+
+      break;
+
+    case "acceptable":
+
+      unevenLightingStatus =
+        "Slightly Uneven Lighting ⚠";
+
+      unevenLightingSuggestion =
+        "Minor lighting imbalance detected.";
+
+      break;
+
+    case "challenging":
+
+      unevenLightingStatus =
+        "Uneven Lighting ⚠";
+
+      unevenLightingSuggestion =
+        "Lighting imbalance may reduce accuracy.";
+
+      break;
+
+    case "poor":
+
+      unevenLightingStatus =
+        "Poor Lighting Balance ❌";
+
+      unevenLightingSuggestion =
+        "Strong lighting imbalance detected.";
+
+      break;
+  }
+
+  // --------------------------------
+  // PERSISTENT POPUP LOGIC
+  // --------------------------------
+  if (severity === "poor") {
+
     if (!memory.startTime) {
-      memory.startTime = performance.now();
+
+      memory.startTime =
+        performance.now();
     }
 
-    const unevenDuration =
-      performance.now() - memory.startTime;
+    const duration =
+      performance.now() -
+      memory.startTime;
 
-    unevenLightingStatus =
-      "Severe Uneven Lighting ❌";
+    // popup only if persistent
+    if (duration > 4000) {
 
-    unevenLightingSuggestion =
-      "Lighting imbalance is strongly affecting face analysis.";
-
-    // popup only after 3 sec
-    if (unevenDuration > 3000) {
       showUnevenLightingPopup = true;
     }
-
-    console.log("❌ Severe Uneven Lighting");
   }
 
-  // -------------------------------
-  // SEVERITY LABEL
-  // -------------------------------
-  let severity = "good";
+  else {
 
-  if (
-    lightingDifferencePercent > 20 &&
-    lightingDifferencePercent <= 35
-  ) {
-    severity = "mild";
+    memory.startTime = null;
+
+    showUnevenLightingPopup = false;
   }
 
-  else if (
-    lightingDifferencePercent > 35 &&
-    lightingDifferencePercent <= 55
-  ) {
-    severity = "moderate";
-  }
-
-  else if (lightingDifferencePercent > 55) {
-    severity = "severe";
-  }
-
-  // -------------------------------
+  // --------------------------------
   // RETURN
-  // -------------------------------
+  // --------------------------------
   return {
+
     unevenLightingStatus,
+
     unevenLightingSuggestion,
+
     showUnevenLightingPopup,
+
     severity,
+
+    lightingQualityScore,
   };
 };

@@ -57,32 +57,90 @@ export function occlusionCheck(metrics, ref) {
   let occlusionStatus = "Face clearly visible ✅";
   let occlusionSuggestion = "";
   let showOcclusionPopup = false;
+let occlusionSeverity = "excellent";
 
+let occlusionQualityScore = 100;
   if (memory.active) {
+  if (memory.active) {
+
+  // -------------------------------
+  // SEVERE OCCLUSION
+  // -------------------------------
+  if (landmarkIntegrityIssue) {
+
+    occlusionSeverity = "poor";
+
+    occlusionQualityScore -= 45;
+
     showOcclusionPopup = true;
 
-    if (landmarkIntegrityIssue) {
-      occlusionStatus = "Face not visible ❌";
-      occlusionSuggestion =
-        "Remove any object blocking your face.";
-    } else if (handOnFace) {
-      occlusionStatus = "Hand blocking face ❌";
-      occlusionSuggestion =
-        "Avoid covering your eyes, nose, or mouth.";
-    } else if (areaDrop) {
-      occlusionStatus = "Face unstable ⚠";
-      occlusionSuggestion =
-        "Keep your face steady and centered.";
-    } else {
-      occlusionStatus = "Face occluded ❌";
-      occlusionSuggestion =
-        "Ensure your face is fully visible.";
-    }
+    occlusionStatus =
+      "Face not visible ❌";
+
+    occlusionSuggestion =
+      "Remove any object blocking your face.";
+  }
+
+  // -------------------------------
+  // HAND COVERING FACE
+  // -------------------------------
+  else if (handOnFace) {
+
+    occlusionSeverity = "poor";
+
+    occlusionQualityScore -= 35;
+
+    showOcclusionPopup = true;
+
+    occlusionStatus =
+      "Hand blocking face ❌";
+
+    occlusionSuggestion =
+      "Avoid covering eyes, nose, or mouth.";
+  }
+
+  // -------------------------------
+  // PARTIAL INSTABILITY
+  // -------------------------------
+  else if (areaDrop) {
+
+    occlusionSeverity = "acceptable";
+
+    occlusionQualityScore -= 10;
+
+    occlusionStatus =
+      "Face unstable ⚠";
+
+    occlusionSuggestion =
+      "Keep your face steady and centered.";
+  }
+
+  // -------------------------------
+  // GENERIC OCCLUSION
+  // -------------------------------
+  else {
+
+    occlusionSeverity = "acceptable";
+
+    occlusionQualityScore -= 15;
+
+    occlusionStatus =
+      "Face partially occluded ⚠";
+
+    occlusionSuggestion =
+      "Ensure your face is fully visible.";
+  }
+}
+
+   
   }
 
   return {
     occlusionStatus,
     occlusionSuggestion,
     showOcclusionPopup,
+      occlusionSeverity,
+
+  occlusionQualityScore,
   };
 }

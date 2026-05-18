@@ -12,7 +12,6 @@ export const checkFacePosition = ( faceCenterX,
       if (  faceCenterX < 0.4) {
         facePositionStatus = "Face Left Aligned ⚠️";
         facePositionSuggestion = "Please center your face in the frame";
-        console.log("Face Left Aligned");
         if (!facePostRef.current) {
           facePostRef.current = performance.now();
         } else {
@@ -24,7 +23,6 @@ export const checkFacePosition = ( faceCenterX,
       } else if (faceCenterX > 0.6) {
         facePositionStatus = "Face Right Aligned ⚠️";
         facePositionSuggestion = "Please center your face in the frame";
-        console.log("Right Aligned");
         if (!facePostRef.current) {
           facePostRef.current = performance.now();
         } else {
@@ -36,7 +34,6 @@ export const checkFacePosition = ( faceCenterX,
       } else if (faceCenterY < 0.4) {
         facePositionStatus = "Face Top Aligned ⚠️";
         facePositionSuggestion = "Please center your face in the frame";
-        console.log("Face Top Aligned");
 
         if (!facePostRef.current) {
           facePostRef.current = performance.now();
@@ -49,7 +46,6 @@ export const checkFacePosition = ( faceCenterX,
       } else if (faceCenterY > 0.6) {
         facePositionStatus = "Face Bottom Aligned ⚠️";
         facePositionSuggestion = "Please center your face in the frame";
-        console.log("Face Bottom Aligned");
 
         if (!facePostRef.current) {
           facePostRef.current = performance.now();
@@ -62,7 +58,6 @@ export const checkFacePosition = ( faceCenterX,
       } else {
         facePositionStatus = "Face Centered ✅";
         facePositionSuggestion = "Face position is good";
-        console.log("Face Centered");
         showFacePositionPopup = false;
         facePostRef.current = null;
       }

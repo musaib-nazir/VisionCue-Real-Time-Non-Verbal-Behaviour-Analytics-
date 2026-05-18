@@ -1,17 +1,17 @@
-export function getMultiFaceMetrics(landmarks){
+    export function getMultiFaceMetrics(landmarks){
 
 
-const faceCount = landmarks?landmarks.length:0;
-const multipleFaceCount = faceCount>1;
-return{
+    const faceCount = landmarks?landmarks.length:0;
+    const  multipleFacesDetected = faceCount>1;
+    return{
 
-faceCount,
-multipleFaceCount
-
-
-}
+    faceCount,
+    multipleFacesDetected
 
 
+    }
 
 
-}
+
+
+    }

@@ -8,7 +8,7 @@ import { checkBrightness } from "../modules/shared/check/brightnesscheck.js";
 import { facedistancecheck } from "../modules/shared/check/facedistancecheck.js";
 import { unevenLightingCheck } from "../modules/shared/check/unevenlightingcheck.js";
 import { blurCheck } from "../modules/shared/check/blurcheck.js";
-import { getCheekBrightness } from "../modules/shared/detection/getcheekBrightness.js";
+import { getCheekBrightness } from "../modules/shared/detection/getCheekBrightness.js";
 import { getBlurScore } from "../modules/shared/detection/getBlurScore.js";
 import { cheekPoints } from "../modules/student/learnerStateAnalysis.js";
 
@@ -99,9 +99,7 @@ const unevenLightingRef = useRef(null);
   )
 );
       }
-    } catch (error) {
-  console.log("Camera access denied:", error);
-
+    } catch {
  setChecks((prevChecks) =>
   prevChecks.map((item) =>
     item.id === 1
@@ -190,8 +188,6 @@ const {FaceArea} = getFaceArea(minX, maxX, minY, maxY,)
 const {faceDistanceStatus,
 faceDistanceSuggestion,
 showFaceDistancePopup} = facedistancecheck(FaceArea,faceDistanceRef);
-console.log("Face Area:", FaceArea);
-console.log("Distance Status:", faceDistanceStatus);
 
 const isGood = faceDistanceStatus === "Good Distance ✅";
 
@@ -236,24 +232,15 @@ function runBalancedLightingCheck(landmarks) {
   showUnevenLightingPopup,
   severity,
 } = unevenLightingCheck(
-  lightingDifferencePercent,
+  {
+    leftBrightness,
+    rightBrightness,
+    lightingDifferencePercent,
+  },
   unevenLightingRef
 );
 
-  console.log(
-    "Lighting Difference %:",
-    lightingDifferencePercent
-  );
-
-  console.log(
-    "Lighting Status:",
-    unevenLightingStatus
-  );
-
-  // ---------------------------------
-  // PASS RULE
-  // ---------------------------------
- const isGood = true;
+ const isGood = severity !== "poor";
   
   setChecks(prev =>
     prev.map(item =>
@@ -342,10 +329,6 @@ ctx.strokeRect(x1, y1, faceWidth, faceHeight);
 
   const { lightingStatus, lightingSuggestion } =
     checkBrightness(brightness, badLightingRef);
-console.log("Landmarks:", landmarks);
-console.log("FaceBox:", x1, y1, faceWidth, faceHeight);
-console.log("Brightness:", brightness);
-console.log("Lighting Status:", lightingStatus);
  const isGood = lightingStatus === "Lighting Good ✅"
 
   setChecks(prev =>
@@ -400,7 +383,6 @@ useEffect(() => {
 
     faceLandmarkerRef.current = await loadFaceModel();
 
-    console.log("Loaded Model:", faceLandmarkerRef.current);
 interval = setInterval(() => {
   const landmarks = runFaceCheck(); 
 

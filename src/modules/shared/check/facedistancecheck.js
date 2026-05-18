@@ -1,12 +1,12 @@
-export const facedistancecheck = ( FaceArea,faceDistRef) => {
+export const facedistancecheck = (FaceArea, faceDistRef) => {
 
   let faceDistanceStatus = "";
       let faceDistanceSuggestion = "";
       let showFaceDistancePopup = false;
-
+let faceDistanceType = null;
       if (FaceArea < 0.02) {
-        console.log("Too Far from the camera");
         faceDistanceStatus = "Too Far ❌";
+        faceDistanceType = "too_far";
         faceDistanceSuggestion = "Move closer to the camera";
         if (!faceDistRef.current) {
           faceDistRef.current = performance.now();
@@ -16,8 +16,8 @@ export const facedistancecheck = ( FaceArea,faceDistRef) => {
           showFaceDistancePopup = true;
         }
       } else if (FaceArea > 0.55) {
-        console.log("Too Close to the camera");
         faceDistanceStatus = "Too Close ⚠️";
+        faceDistanceType = "too_close";
         faceDistanceSuggestion = "Move slightly back";
         if (!faceDistRef.current) {
           faceDistRef.current = performance.now();
@@ -32,12 +32,14 @@ export const facedistancecheck = ( FaceArea,faceDistRef) => {
         faceDistanceSuggestion = "Face distance is ideal";
         showFaceDistancePopup = false;
         faceDistRef.current = null;
+        faceDistanceType = null;
       }
 
   return{
 faceDistanceStatus,
 faceDistanceSuggestion,
-showFaceDistancePopup
+showFaceDistancePopup,
+faceDistanceType
 
 
 

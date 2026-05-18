@@ -16,7 +16,7 @@ export async function loadFaceModel() {
           "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
       },
       runningMode: "VIDEO",
-      numFaces: 1,
+      numFaces: 5,
     }
   );
 

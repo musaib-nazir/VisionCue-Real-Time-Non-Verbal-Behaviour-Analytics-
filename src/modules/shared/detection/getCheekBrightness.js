@@ -76,18 +76,6 @@ export const getCheekBrightness = (
       Math.min(rightBoxY, canvasHeight - boxSize)
     );
 
-  console.log(
-    "Left box:",
-    safeLeftBoxX,
-    safeLeftBoxY
-  );
-
-  console.log(
-    "Right box:",
-    safeRightBoxX,
-    safeRightBoxY
-  );
-
   // --------------------------------
   // GET IMAGE REGIONS
   // --------------------------------
@@ -116,16 +104,6 @@ export const getCheekBrightness = (
   const rightBrightness =
     getBrightness(rightCheekRegion);
 
-  console.log(
-    "Left Cheek Brightness:",
-    leftBrightness
-  );
-
-  console.log(
-    "Right Cheek Brightness:",
-    rightBrightness
-  );
-
   // --------------------------------
   // STABILIZE EXTREMES
   // --------------------------------
@@ -152,16 +130,6 @@ export const getCheekBrightness = (
   // --------------------------------
   lightingDifferencePercent =
     Math.min(lightingDifferencePercent, 100);
-
-  console.log(
-    "Lighting Difference:",
-    lightingDifference
-  );
-
-  console.log(
-    "Lighting Difference %:",
-    lightingDifferencePercent
-  );
 
   // --------------------------------
   // RETURN

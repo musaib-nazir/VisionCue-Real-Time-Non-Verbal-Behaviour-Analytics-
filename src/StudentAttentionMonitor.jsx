@@ -17,6 +17,17 @@ import { getFaceArea } from "./modules/shared/detection/getFaceArea";
 import { getFaceCenter } from "./modules/shared/detection/getFaceCenter";
 import { getOcclusionMetrics } from "./modules/shared/detection/getOcclusionMetrics";
 import { getBlurScore } from "./modules/shared/detection/getBlurScore";
+
+import { videoQualityEngine } from "./modules/shared/Engine/videoQualityEngine";
+
+
+
+
+
+
+
+
+
 //studentimnports:
 import {
   computeAttention,
@@ -98,8 +109,8 @@ const INITIAL_UI = {
     "Checking if you're the right distance from the camera...",
 
   showFaceDistancePopup: false,
-
-  facePositionstatus: "Checking Face Position,,,,,",
+lightingBalance:"checking lighting balance ",
+  facePositionStatus: "Checking Face Position,,,,,",
   facePositionSuggestion:
     "Checking if your face is well positioned in the frame...",
   showFacePositionPopup: false,
@@ -115,6 +126,13 @@ showOcclusionPopup: false,
     multiFaceSuggestion: "Checking if there are multiple faces in view...",
     showMultiFacePopup: false,
     faceCount:0,
+    overallQualityScore: 100,
+activePopup: null,
+
+shouldBlockAnalysis: false,
+
+blockingIssues: [],
+overallSeverity: "excellent",
   fps: "fps: --",
   learner: INITIAL_LEARNER,
   gestureLevels: { raiseHand: 0, agree: 0, disagree: 0 },
@@ -122,6 +140,7 @@ showOcclusionPopup: false,
   notice:
     "On-device only. Video never leaves your browser. Works best over HTTPS (or localhost), good lighting, and a single face in view.",
   hasError: false,
+
 };
 
 function createEMA(alpha) {
@@ -550,15 +569,12 @@ const prevFaceAreaRef = useRef(null);
     const face = faceLandmarker.detectForVideo(video, ts);
     const hands = handLandmarker.detectForVideo(video, ts);
     if (face?.faceLandmarks?.length) {
-      console.log("Faces detected:", face.faceLandmarks.length);
-      console.log("Number of landmarks:", face.faceLandmarks[0].length);
-      console.log("Sample landmark:", face.faceLandmarks[0][0]);
-
       const landmarks = face.faceLandmarks[0];
       const canvasWidth = processCanvas.width;
       const canvasHeight = processCanvas.height;
       pctx.drawImage(video, 0, 0, processCanvas.width, processCanvas.height);
       //multiple face detection:
+
       const multiFaceMetrics = getMultiFaceMetrics(
   face.faceLandmarks
 );
@@ -585,28 +601,52 @@ const {
          
         );
 
-      const {
+const {
   unevenLightingStatus,
   unevenLightingSuggestion,
   showUnevenLightingPopup,
+  severity,
+  lightingQualityScore,
 } = unevenLightingCheck(
-  lightingDifferencePercent,
+  {
+    leftBrightness,
+    rightBrightness,
+    lightingDifferencePercent,
+  },
   unevenLightingRef
 );
-
       //  brightness detection and facebox cal
       const { minX, maxX, minY, maxY, x1, x2, y1, y2, faceWidth, faceHeight } =
         getfacebox(landmarks, canvasWidth, canvasHeight);
 
       const brightness = getFaceBrightness(pctx, x1, y1, faceWidth, faceHeight);
-      console.log("Brightness:", brightness);
-      const { lightingStatus, lightingSuggestion, showLightingPopup } =
-        checkBrightness(brightness, badLightiningRef);
+const {
+  lightingStatus,
+  lightingSuggestion,
+  showLightingPopup,
+
+  brightnessSeverity,
+
+  brightnessQualityScore,
+
+} =
+  checkBrightness(
+    brightness,
+    badLightiningRef
+  );
       const blurScore = getBlurScore(pctx, x1, y1, faceWidth, faceHeight);
-      const { blurStatus, blurSuggestion, showBlurPopup } = blurCheck(
-        blurScore,
-        blurRef,
-      );
+     const {
+  blurStatus,
+  blurSuggestion,
+  showBlurPopup,
+
+  blurSeverity,
+  blurQualityScore,
+
+} = blurCheck(
+  blurScore,
+  blurRef
+);
       //Face Size / Distance Check
       const { FWidth, FHeight, FaceArea } = getFaceArea(minX, maxX, minY, maxY);
 
@@ -618,6 +658,8 @@ const {
   occlusionStatus,
   occlusionSuggestion,
   showOcclusionPopup,
+ occlusionSeverity,
+  occlusionQualityScore,
 } = occlusionCheck(metrics, occlusionRef);
 
 
@@ -625,6 +667,7 @@ const {
         faceDistanceStatus,
         faceDistanceSuggestion,
         showFaceDistancePopup,
+        faceDistanceType,
       } = facedistancecheck(FaceArea, faceDistRef);
 
       //faceposition Check
@@ -642,6 +685,29 @@ const {
         showFacePositionPopup,
       } = checkFacePosition(faceCenterX, faceCenterY, facePostRef);
 
+const quality =
+  videoQualityEngine({
+
+    lightingSeverity: severity,
+
+    lightingQualityScore,
+
+    brightnessSeverity,
+
+    brightnessQualityScore,
+
+  occlusionSeverity,
+
+occlusionQualityScore,
+    blurSeverity,
+blurQualityScore,
+
+    multiFaceDetected:
+      faceCount > 1,
+      showMultiFacePopup,
+      showFaceDistancePopup,
+      faceDistanceType,
+  });
       if (overlayVisibleRef.current) {
         drawFace(ctx, overlay, face.faceLandmarks[0]);
         drawHands(ctx, overlay, hands?.landmarks);
@@ -674,7 +740,7 @@ const {
         faceDistanceStatus: faceDistanceStatus,
         faceDistanceSuggestion: faceDistanceSuggestion,
         showFaceDistancePopup: showFaceDistancePopup,
-        facePositionstatus: facePositionStatus,
+        facePositionStatus: facePositionStatus,
         facePositionSuggestion: facePositionSuggestion,
         showFacePositionPopup: showFacePositionPopup,
 occlusionStatus: occlusionStatus,
@@ -684,21 +750,37 @@ showOcclusionPopup: showOcclusionPopup,
         blurStatus: blurStatus,
         blurSuggestion: blurSuggestion,
         showBlurPopup: showBlurPopup,
+        lightingBalance:severity,
+        lightingDifferencePercent,
          multiFaceStatus: multiFaceStatus,
   multiFaceSuggestion:multiFaceSuggestion,
   showMultiFacePopup: showMultiFacePopup,
   faceCount:faceCount,
+  overallQualityScore:
+  quality.overallQualityScore,
+
+overallSeverity:
+  quality.overallSeverity,
+  activePopup:
+  quality.activePopup,
+  blockingIssues:
+  quality.blockingIssues,
+  shouldBlockAnalysis:
+  quality.shouldBlockAnalysis,
       }));
-      if (
-        showLightingPopup ||
-        showUnevenLightingPopup ||
-        showFaceDistancePopup||showFacePositionPopup  || showOcclusionPopup ||
-        showBlurPopup||showMultiFacePopup
-      ) {
-        updateFps();
-        frameRef.current = requestAnimationFrame(loop);
-        return;
-      }
+
+const shouldBlockAnalysis =
+  quality.shouldBlockAnalysis;
+
+if (shouldBlockAnalysis)
+{
+  updateFps();
+
+  frameRef.current =
+    requestAnimationFrame(loop);
+
+  return;
+}
       const runtime = runtimeRef.current;
       const { up, down } = detectThumbs(hands);
       const raiseHandRaw = detectRaiseHand(hands);
@@ -828,7 +910,7 @@ showOcclusionPopup: showOcclusionPopup,
             className={`overlay${overlayVisible ? "" : " hidden"}`}
           />
 
-          {ui.showLightingPopup && (
+          {/* {ui.showLightingPopup && (
             <div className="lightingPopup">
               <h2>Poor Lighting Detected</h2>
               <p>Your face is not clearly visible for reliable analysis.</p>
@@ -889,7 +971,39 @@ showOcclusionPopup: showOcclusionPopup,
     <p>{ui.multiFaceSuggestion}</p>
     <p>Only one person should be visible.</p>
   </div>
-)}
+)} */}
+{
+  ui.activePopup && (
+
+    <div className="popup-container">
+
+      <div className="popup-box">
+
+        <h2>
+          {ui.activePopup.title}
+        </h2>
+
+        <div className="popup-content">
+
+          <p className="popup-message">
+
+            {ui.activePopup.message}
+
+          </p>
+
+          <p className="popup-suggestion">
+
+            {ui.activePopup.suggestion}
+
+          </p>
+
+        </div>
+
+      </div>
+
+    </div>
+  )
+}
         </section>
 
         <aside className="card pane">
@@ -964,6 +1078,28 @@ showOcclusionPopup: showOcclusionPopup,
             <span className="muted">Sharpness</span>
             <b>{ui.blurScore}</b>
           </div>
+
+
+<div className="kv">
+  <span className="muted">
+    Overall Quality
+  </span>
+
+  <b>{ui.overallSeverity}</b>
+</div>
+
+<div className="kv">
+  <span className="muted">
+    Quality Score
+  </span>
+
+  <b>{ui.overallQualityScore}</b>
+</div>
+
+
+
+
+
           <h3>Learner states</h3>
           <div className="grid">
             <div>

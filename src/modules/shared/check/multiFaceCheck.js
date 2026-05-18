@@ -7,6 +7,7 @@ export function multiFaceCheck(metrics, ref) {
     ref.current = {
       history: [],
       active: false,
+       startTime: null, 
     };
   }
 
@@ -17,7 +18,7 @@ export function multiFaceCheck(metrics, ref) {
   memory.history.push(score);
 
 
-  if (memory.history.length > 10) {
+  if (memory.history.length > 15) {
     memory.history.shift();
   }
 
@@ -26,11 +27,28 @@ export function multiFaceCheck(metrics, ref) {
     memory.history.reduce((a, b) => a + b, 0) /
     memory.history.length;
 
-  if (avg >= 0.4) {
-    memory.active = true;
-  } else if (avg <= 0.2) {
-    memory.active = false;
-  }
+if(avg>0.4){
+if(!memory.startTime){
+
+
+memory.startTime = performance.now()
+
+
+}
+
+const duration = performance.now()-memory.startTime;
+
+    if (duration > 5000) {
+      memory.active = true;
+    }
+
+}else{
+memory.startTime = null;
+memory.active=false;
+
+
+
+}
 
 
   let multiFaceStatus = "Single face detected ✅";
@@ -45,13 +63,11 @@ export function multiFaceCheck(metrics, ref) {
     showMultiFacePopup = true;
 
 
-    console.log("Multiple faces detected");
   }else{
 
     multiFaceStatus = "Single face detected ✅";
     multiFaceSuggestion = "Only one person should be visible";
     showMultiFacePopup = false;
-    console.log("Single face detected");
   }
 
   return {
