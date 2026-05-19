@@ -5,6 +5,7 @@ import { facedistancecheck } from "./modules/shared/check/facedistancecheck";
 import { unevenLightingCheck } from "./modules/shared/check/unevenlightingcheck";
 import { occlusionCheck } from "./modules/shared/check/occlusionCheck";
 import { blurCheck } from "./modules/shared/check/blurcheck";
+import { videoQualityEngine } from "./modules/shared/Engine/videoQualityEngine";
 import { getMultiFaceMetrics } from "./modules/shared/detection/getMultiFaceMetrics";
 import { multiFaceCheck } from "./modules/shared/check/multiFaceCheck";
 //imprt detection:
@@ -115,6 +116,11 @@ showOcclusionPopup: false,
     multiFaceSuggestion: "Checking if there are multiple faces in view...",
     showMultiFacePopup: false,
     faceCount:0,
+    overallQualityScore: 100,
+    overallSeverity: "excellent",
+    activePopup: null,
+    shouldBlockAnalysis: false,
+    blockingIssues: [],
   fps: "fps: --",
   learner: INITIAL_LEARNER,
   gestureLevels: { raiseHand: 0, agree: 0, disagree: 0 },
@@ -587,6 +593,7 @@ const {
   unevenLightingSuggestion,
   showUnevenLightingPopup,
   severity,
+  lightingQualityScore,
 } = unevenLightingCheck(
   {
     leftBrightness,
@@ -601,10 +608,22 @@ const {
         getfacebox(landmarks, canvasWidth, canvasHeight);
 
       const brightness = getFaceBrightness(pctx, x1, y1, faceWidth, faceHeight);
-      const { lightingStatus, lightingSuggestion, showLightingPopup } =
+      const {
+        lightingStatus,
+        lightingSuggestion,
+        showLightingPopup,
+        brightnessSeverity,
+        brightnessQualityScore,
+      } =
         checkBrightness(brightness, badLightiningRef);
       const blurScore = getBlurScore(pctx, x1, y1, faceWidth, faceHeight);
-      const { blurStatus, blurSuggestion, showBlurPopup } = blurCheck(
+      const {
+        blurStatus,
+        blurSuggestion,
+        showBlurPopup,
+        blurSeverity,
+        blurQualityScore,
+      } = blurCheck(
         blurScore,
         blurRef,
       );
@@ -619,6 +638,8 @@ const {
   occlusionStatus,
   occlusionSuggestion,
   showOcclusionPopup,
+  occlusionSeverity,
+  occlusionQualityScore,
 } = occlusionCheck(metrics, occlusionRef);
 
 
@@ -626,6 +647,7 @@ const {
         faceDistanceStatus,
         faceDistanceSuggestion,
         showFaceDistancePopup,
+        faceDistanceType,
       } = facedistancecheck(FaceArea, faceDistRef);
 
       //faceposition Check
@@ -642,6 +664,21 @@ const {
         facePositionSuggestion,
         showFacePositionPopup,
       } = checkFacePosition(faceCenterX, faceCenterY, facePostRef);
+
+const quality = videoQualityEngine({
+  lightingSeverity: severity,
+  lightingQualityScore,
+  brightnessSeverity,
+  brightnessQualityScore,
+  occlusionSeverity,
+  occlusionQualityScore,
+  blurSeverity,
+  blurQualityScore,
+  multiFaceDetected: faceCount > 1,
+  showMultiFacePopup,
+  showFaceDistancePopup,
+  faceDistanceType,
+});
 
       if (overlayVisibleRef.current) {
         drawFace(ctx, overlay, face.faceLandmarks[0]);
@@ -691,13 +728,13 @@ showOcclusionPopup: showOcclusionPopup,
   multiFaceSuggestion:multiFaceSuggestion,
   showMultiFacePopup: showMultiFacePopup,
   faceCount:faceCount,
+  overallQualityScore: quality.overallQualityScore,
+  overallSeverity: quality.overallSeverity,
+  activePopup: quality.activePopup,
+  blockingIssues: quality.blockingIssues,
+  shouldBlockAnalysis: quality.shouldBlockAnalysis,
       }));
-      if (
-        showLightingPopup ||
-        showUnevenLightingPopup ||
-        showFaceDistancePopup||showFacePositionPopup  || showOcclusionPopup ||
-        showBlurPopup||showMultiFacePopup
-      ) {
+      if (quality.shouldBlockAnalysis || showFacePositionPopup) {
         updateFps();
         frameRef.current = requestAnimationFrame(loop);
         return;
@@ -831,68 +868,19 @@ showOcclusionPopup: showOcclusionPopup,
             className={`overlay${overlayVisible ? "" : " hidden"}`}
           />
 
-          {ui.showLightingPopup && (
-            <div className="lightingPopup">
-              <h2>Poor Lighting Detected</h2>
-              <p>Your face is not clearly visible for reliable analysis.</p>
-
-              <p>
-                Please move closer to a light source or reduce strong direct
-                light.
-              </p>
-
-              <p>Waiting for better lighting...</p>
+          {ui.activePopup && (
+            <div className="popup-container">
+              <div className="popup-box">
+                <h2>{ui.activePopup.title}</h2>
+                <div className="popup-content">
+                  <p className="popup-message">{ui.activePopup.message}</p>
+                  <p className="popup-suggestion">
+                    {ui.activePopup.suggestion}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
-          {ui.showUnevenLightingPopup && (
-            <div className="lightingPopup">
-              <h2>Uneven Lighting Detected</h2>
-              <p>One side of your face is brighter than the other.</p>
-              <p>Please sit facing the light source evenly.</p>
-              <p>Waiting for balanced lighting...</p>
-            </div>
-          )}
-{ui.showOcclusionPopup && (
-  <div className="lightingPopup">
-    <h2>Face Occlusion Detected</h2>
-    <p>Your face is partially blocked.</p>
-    <p>{ui.occlusionSuggestion}</p>
-    <p>Waiting for a clear view...</p>
-  </div>
-)}
-          {ui.showBlurPopup && (
-            <div className="lightingPopup">
-              <h2>Blurry Camera Detected</h2>
-              <p>Your face is not sharp enough for reliable analysis.</p>
-              <p>{ui.blurSuggestion}</p>
-              <p>Waiting for a clearer image...</p>
-            </div>
-          )}
-          {ui.showFaceDistancePopup && (
-            <div className="lightingPopup">
-              <h1>Face Distance Issue Detected </h1>
-              {ui.faceDistanceStatus === "Too Far ❌" ? (
-                <p>
-                  Your face appears too small, indicating you are too far from
-                  the camera.
-                </p>
-              ) : (
-                <p>
-                  Your face appears too large, indicating you are too close to
-                  the camera.
-                </p>
-              )}
-            </div>
-            
-            
-          )}
-          {ui.showMultiFacePopup && (
-  <div className="lightingPopup">
-    <h2>Multiple Faces Detected</h2>
-    <p>{ui.multiFaceSuggestion}</p>
-    <p>Only one person should be visible.</p>
-  </div>
-)}
         </section>
 
         <aside className="card pane">
@@ -966,6 +954,14 @@ showOcclusionPopup: showOcclusionPopup,
           <div className="kv">
             <span className="muted">Sharpness</span>
             <b>{ui.blurScore}</b>
+          </div>
+          <div className="kv">
+            <span className="muted">Overall Quality</span>
+            <b>{ui.overallSeverity}</b>
+          </div>
+          <div className="kv">
+            <span className="muted">Quality Score</span>
+            <b>{ui.overallQualityScore}</b>
           </div>
           <h3>Learner states</h3>
           <div className="grid">

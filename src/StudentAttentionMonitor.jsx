@@ -1004,7 +1004,7 @@ if (shouldBlockAnalysis)
           {ui.showFaceDistancePopup && (
             <div className="lightingPopup">
               <h1>Face Distance Issue Detected </h1>
-              {ui.faceDistanceStatus === "Too Far ❌" ? (
+              {ui.faceDistanceStatus === "Too Far - Issue" ? (
                 <p>
                   Your face appears too small, indicating you are too far from
                   the camera.

@@ -162,8 +162,6 @@ export function createSessionTracker() {
       topLearnerState,
       learnerAverages,
     };
-    console.log(learnerAverages)
-
     active = false;
 
     return {

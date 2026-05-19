@@ -1,152 +1,99 @@
-export const checkBrightness = (
-  brightness,
-  badLightiningRef
-) => {
-
-  // --------------------------------
-  // OUTPUT
-  // --------------------------------
+export const checkBrightness = (brightness, badLightiningRef) => {
   let lightingStatus = "";
-
   let lightingSuggestion = "";
-
   let showLightingPopup = false;
 
-  // --------------------------------
-  // QUALITY SCORE
-  // --------------------------------
   let brightnessQualityScore = 100;
-
-  // --------------------------------
-  // SEVERITY
-  // --------------------------------
   let brightnessSeverity = "excellent";
 
-  // --------------------------------
+  // ----------------------------
   // TOO DARK
-  // --------------------------------
-  if (brightness < 50) {
-
+  // ----------------------------
+  if (brightness < 60) {
     brightnessSeverity = "poor";
-
     brightnessQualityScore -= 45;
 
-    lightingStatus = "Too Dark ❌";
-
+    lightingStatus = "Too Dark - Issue";
     lightingSuggestion =
-      "Move closer to a light source";
+      "Increase room lighting or move closer to a light source.";
 
     if (!badLightiningRef.current) {
-      badLightiningRef.current =
-        performance.now();
+      badLightiningRef.current = performance.now();
     }
 
     const badDuration =
-      performance.now() -
-      badLightiningRef.current;
+      performance.now() - badLightiningRef.current;
 
     if (badDuration > 3000) {
-
       showLightingPopup = true;
     }
-  }
 
-  // --------------------------------
+  // ----------------------------
   // SLIGHTLY DARK
-  // --------------------------------
-  else if (brightness < 80) {
-
+  // ----------------------------
+  } else if (brightness < 90) {
     brightnessSeverity = "acceptable";
-
     brightnessQualityScore -= 10;
 
-    lightingStatus =
-      "Low Brightness ⚠";
-
+    lightingStatus = "Low Brightness - Warning";
     lightingSuggestion =
-      "Face is slightly dark.";
+      "Lighting is slightly dim.";
 
     badLightiningRef.current = null;
-  }
 
-  // --------------------------------
-  // IDEAL
-  // --------------------------------
-  else if (brightness <= 170) {
-
+  // ----------------------------
+  // GOOD LIGHTING
+  // ----------------------------
+  } else if (brightness <= 180) {
     brightnessSeverity = "excellent";
 
-    lightingStatus =
-      "Lighting Good ✅";
-
+    lightingStatus = "Lighting Good - OK";
     lightingSuggestion =
-      "Lighting is suitable for video capture";
+      "Lighting is suitable for video capture.";
 
     badLightiningRef.current = null;
-  }
 
-  // --------------------------------
+  // ----------------------------
   // SLIGHTLY BRIGHT
-  // --------------------------------
-  else if (brightness <= 210) {
-
+  // ----------------------------
+  } else if (brightness <= 220) {
     brightnessSeverity = "acceptable";
-
     brightnessQualityScore -= 10;
 
-    lightingStatus =
-      "Bright Lighting ⚠";
-
+    lightingStatus = "Bright Lighting - Warning";
     lightingSuggestion =
       "Lighting is slightly strong.";
 
     badLightiningRef.current = null;
-  }
 
-  // --------------------------------
-  // OVEREXPOSED
-  // --------------------------------
-  else {
-
+  // ----------------------------
+  // TOO BRIGHT
+  // ----------------------------
+  } else {
     brightnessSeverity = "poor";
-
     brightnessQualityScore -= 45;
 
-    lightingStatus =
-      "Too Bright ❌";
-
+    lightingStatus = "Too Bright - Issue";
     lightingSuggestion =
-      "Reduce strong direct lighting.";
+      "Reduce direct lighting or avoid strong light facing the camera.";
 
     if (!badLightiningRef.current) {
-
-      badLightiningRef.current =
-        performance.now();
+      badLightiningRef.current = performance.now();
     }
 
     const badDuration =
-      performance.now() -
-      badLightiningRef.current;
+      performance.now() - badLightiningRef.current;
 
     if (badDuration > 3000) {
-
       showLightingPopup = true;
     }
   }
 
-  // --------------------------------
-  // RETURN
-  // --------------------------------
   return {
-
     lightingStatus,
-
     lightingSuggestion,
-
     showLightingPopup,
-
     brightnessSeverity,
-
     brightnessQualityScore,
   };
 };

@@ -14,6 +14,7 @@ import { cheekPoints } from "../modules/student/learnerStateAnalysis.js";
 
 export default function SetupScreen({ onStart }) {
   const vidRef = useRef(null);
+  const streamRef = useRef(null);
   const faceLandmarkerRef = useRef(null);
   const processCanvasRef = useRef(null);
 const badLightingRef = useRef(null);
@@ -85,6 +86,8 @@ const unevenLightingRef = useRef(null);
         },
         audio: false,
       });
+
+      streamRef.current = stream;
 
       if (vidRef.current) {
         vidRef.current.srcObject = stream;
@@ -189,7 +192,7 @@ const {faceDistanceStatus,
 faceDistanceSuggestion,
 showFaceDistancePopup} = facedistancecheck(FaceArea,faceDistanceRef);
 
-const isGood = faceDistanceStatus === "Good Distance ✅";
+const isGood = faceDistanceStatus === "Good Distance - OK";
 
 setChecks(prev=>prev.map(item=>
   item.id === 5
@@ -329,7 +332,7 @@ ctx.strokeRect(x1, y1, faceWidth, faceHeight);
 
   const { lightingStatus, lightingSuggestion } =
     checkBrightness(brightness, badLightingRef);
- const isGood = lightingStatus === "Lighting Good ✅"
+ const isGood = lightingStatus === "Lighting Good - OK"
 
   setChecks(prev =>
     prev.map(item =>
@@ -400,6 +403,12 @@ interval = setInterval(() => {
 
   return () => {
     clearInterval(interval);
+    if (streamRef.current) {
+      for (const track of streamRef.current.getTracks()) {
+        track.stop();
+      }
+      streamRef.current = null;
+    }
   };
 }, []);
   return (
@@ -471,9 +480,9 @@ interval = setInterval(() => {
         }`}
       >
         {item.passed === true
-          ? "✓"
+          ? "OK"
           : item.passed === false
-          ? "✗"
+          ? "X"
           : ""}
       </div>
 

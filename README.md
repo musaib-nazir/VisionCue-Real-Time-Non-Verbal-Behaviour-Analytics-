@@ -1,6 +1,6 @@
 # Body Language Monitor
 
-This project contains a vision-based analytics system for monitoring behavior, engagement, and communication patterns across different modes.
+Vision-based browser analytics for monitoring attention, engagement, and communication patterns across multiple modes.
 
 The app uses:
 
@@ -8,14 +8,12 @@ The app uses:
 * `Vite` for local development and builds
 * `@mediapipe/tasks-vision` for on-device face and hand landmark inference
 
-The system is now structured into separate monitoring modes:
+The system is structured into separate monitoring modes:
 
-* **Student Mode** → learner attention and engagement tracking
-* **Interview Mode** → candidate communication and interview behavior analysis
+* **Student Mode**: learner attention and engagement tracking
+* **Interview Mode**: candidate communication and interview behavior analysis
 
-The original student monitoring component is available as [src/components/StudentAttentionMonitor.jsx](/Users/monis/work/emly/repos/body-language/src/components/StudentAttentionMonitor.jsx).
-
-The original standalone prototype is still available as [v10.html](/Users/monis/work/emly/repos/body-language/v10.html).
+Inference runs in the browser. Video is not uploaded by the app.
 
 ---
 
@@ -49,8 +47,8 @@ It also renders:
 * Attention / behavior sparkline
 * Gesture counters
 * Real-time behavior assessment panels
-
-Inference runs fully in the browser. Video is not uploaded by the app.
+* Pre-session environment checks
+* Student session summary reports
 
 ---
 
@@ -58,46 +56,34 @@ Inference runs fully in the browser. Video is not uploaded by the app.
 
 ### Core Files
 
-* [index.html](/Users/monis/work/emly/repos/body-language/index.html): Vite entry HTML
-* [src/main.jsx](/Users/monis/work/emly/repos/body-language/src/main.jsx): React bootstrap
-* [src/App.jsx](/Users/monis/work/emly/repos/body-language/src/App.jsx): top-level app wrapper
-* [src/styles.css](/Users/monis/work/emly/repos/body-language/src/styles.css): app styling
-* [v10.html](/Users/monis/work/emly/repos/body-language/v10.html): original pure-JS prototype
+* `index.html`: Vite entry HTML
+* `src/main.jsx`: React bootstrap
+* `src/App.jsx`: top-level app wrapper
+* `src/styles.css`: app styling
 
 ### Components
 
-* [src/components/StudentAttentionMonitor.jsx](/Users/monis/work/emly/repos/body-language/src/components/StudentAttentionMonitor.jsx): student engagement monitoring
-* [src/components/InterviewMonitor.jsx](/Users/monis/work/emly/repos/body-language/src/components/InterviewMonitor.jsx): interview behavior monitoring
+* `src/StudentAttentionMonitor.jsx`: student engagement monitoring
+* `src/InterviewMonitor.jsx`: interview behavior monitoring
+* `src/components/setupScreen.jsx`: pre-session camera and environment verification
+* `src/modeSelector.jsx`: mode switching UI
+* `src/modes/`: mode wrappers
 
 ### Shared Modules
 
 Reusable logic has been refactored into shared modules to avoid duplication across modes.
 
-#### Shared Checks
+* `src/modules/shared/check/`: brightness, face position, distance, occlusion, blur, lighting balance, and multi-face checks
+* `src/modules/shared/detection/`: face measurements, landmark calculations, brightness, blur, and model helpers
+* `src/modules/shared/Engine/videoQualityEngine.js`: combined quality scoring and blocking decisions
+* `src/modules/shared/session/createSessionTracker.js`: student session summary aggregation
 
-* [src/shared/checks/](/Users/monis/work/emly/repos/body-language/src/shared/checks/)
+### Student Modules
 
-Contains reusable evaluation logic such as:
-
-* brightness checks
-* attention scoring
-* head pose checks
-* behavioral threshold checks
-* gesture interpretation logic
-
-#### Shared Detection Utilities
-
-* [src/shared/detection/](/Users/monis/work/emly/repos/body-language/src/shared/detection/)
-
-Contains reusable detection helpers such as:
-
-* face measurements
-* landmark calculations
-* brightness measurement
-* head pose extraction
-* timed value tracking helpers
-
-This structure allows both Student Mode and Interview Mode to use the same detection pipeline while keeping mode-specific logic separate.
+* `src/modules/student/attentionTracking.js`
+* `src/modules/student/raiseHandDetection.js`
+* `src/modules/student/learnerStateAnalysis.js`
+* `src/modules/student/gestureDecision.js`
 
 ---
 
@@ -139,14 +125,14 @@ npm run preview
 
 1. Start the dev server.
 2. Open the local app URL shown by Vite.
-3. Select the required monitoring mode:
-
+3. Complete the setup verification.
+4. Select the required monitoring mode:
    * Student Mode
    * Interview Mode
-4. Click `Start camera`.
-5. Allow browser camera access.
-6. Use `Toggle overlay` to show or hide landmarks.
-7. Use `Stop` to release the camera stream.
+5. Click `Start camera`.
+6. Allow browser camera access.
+7. Use `Toggle overlay` to show or hide landmarks.
+8. Use `Stop` to release the camera stream.
 
 ---
 
@@ -160,18 +146,9 @@ npm run preview
 
 ---
 
-## Refactoring Notes
+## Recommended Next Work
 
-Compared with the original HTML prototype, the React application now:
-
-* Moves monitoring into reusable React components
-* Separates Student Mode and Interview Mode into dedicated modules
-* Uses React state and refs instead of direct DOM wiring
-* Cleans up camera streams and animation frames on stop/unmount
-* Introduces shared reusable detection modules for both monitoring modes
-* Introduces shared check logic for scoring and behavioral evaluation
-* Reduces duplicate code across components
-* Improves scalability for adding future monitoring modes
-* Preserves the original overlay styling and learner-state behavior as closely as possible
-
-This modular architecture makes the system easier to maintain, extend, and adapt for additional behavioral analytics use cases in the future.
+* Extract the duplicated camera/model/overlay loop from the student and interview monitors into a shared hook.
+* Make both modes use the same quality engine and report format.
+* Add unit tests for the shared check modules.
+* Add export options for session reports.

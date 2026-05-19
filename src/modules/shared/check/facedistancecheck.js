@@ -1,51 +1,46 @@
 export const facedistancecheck = (FaceArea, faceDistRef) => {
-
   let faceDistanceStatus = "";
-      let faceDistanceSuggestion = "";
-      let showFaceDistancePopup = false;
-let faceDistanceType = null;
-      if (FaceArea < 0.02) {
-        faceDistanceStatus = "Too Far ❌";
-        faceDistanceType = "too_far";
-        faceDistanceSuggestion = "Move closer to the camera";
-        if (!faceDistRef.current) {
-          faceDistRef.current = performance.now();
-        }
-        const badDistance = performance.now() - faceDistRef.current;
-        if (badDistance > 3000) {
-          showFaceDistancePopup = true;
-        }
-      } else if (FaceArea > 0.55) {
-        faceDistanceStatus = "Too Close ⚠️";
-        faceDistanceType = "too_close";
-        faceDistanceSuggestion = "Move slightly back";
-        if (!faceDistRef.current) {
-          faceDistRef.current = performance.now();
-        }
+  let faceDistanceSuggestion = "";
+  let showFaceDistancePopup = false;
+  let faceDistanceType = null;
 
-        const badDistance = performance.now() - faceDistRef.current;
-        if (badDistance > 3000) {
-          showFaceDistancePopup = true;
-        }
-      } else {
-        faceDistanceStatus = "Good Distance ✅";
-        faceDistanceSuggestion = "Face distance is ideal";
-        showFaceDistancePopup = false;
-        faceDistRef.current = null;
-        faceDistanceType = null;
-      }
+  if (FaceArea < 0.02) {
+    faceDistanceStatus = "Too Far - Issue";
+    faceDistanceType = "too_far";
+    faceDistanceSuggestion = "Move closer to the camera";
 
-  return{
-faceDistanceStatus,
-faceDistanceSuggestion,
-showFaceDistancePopup,
-faceDistanceType
+    if (!faceDistRef.current) {
+      faceDistRef.current = performance.now();
+    }
 
+    const badDistance = performance.now() - faceDistRef.current;
+    if (badDistance > 3000) {
+      showFaceDistancePopup = true;
+    }
+  } else if (FaceArea > 0.55) {
+    faceDistanceStatus = "Too Close - Warning";
+    faceDistanceType = "too_close";
+    faceDistanceSuggestion = "Move slightly back";
 
+    if (!faceDistRef.current) {
+      faceDistRef.current = performance.now();
+    }
 
+    const badDistance = performance.now() - faceDistRef.current;
+    if (badDistance > 3000) {
+      showFaceDistancePopup = true;
+    }
+  } else {
+    faceDistanceStatus = "Good Distance - OK";
+    faceDistanceSuggestion = "Face distance is ideal";
+    showFaceDistancePopup = false;
+    faceDistRef.current = null;
   }
 
-
-
-
-    }
+  return {
+    faceDistanceStatus,
+    faceDistanceSuggestion,
+    showFaceDistancePopup,
+    faceDistanceType,
+  };
+};
