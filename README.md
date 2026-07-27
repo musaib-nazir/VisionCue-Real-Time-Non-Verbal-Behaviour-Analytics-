@@ -146,6 +146,47 @@ npm run preview
 
 ---
 
+## License
+
+This project is released under the Apache License 2.0. See `LICENSE` for the full license text.
+
+---
+
+## Attribution
+
+This project uses the following open-source technologies and browser APIs:
+
+* `React` and `React DOM` for the user interface.
+* `Vite` and `@vitejs/plugin-react` for local development and production builds.
+* `@mediapipe/tasks-vision` for browser-based face and hand landmark inference.
+* MediaPipe Face Landmarker and Hand Landmarker model assets loaded at runtime from Google-hosted MediaPipe model storage.
+* MediaPipe WASM assets loaded at runtime from jsDelivr.
+* Browser camera, video, and canvas APIs, including `navigator.mediaDevices.getUserMedia`.
+
+No custom machine learning model, private dataset, or backend API is included in this repository.
+
+---
+
+## Limitations
+
+This project is a rule-based prototype built on top of pretrained landmark models. Its results are approximate and may be affected by camera quality, lighting, face position, occlusion, network availability for model loading, browser support, and device performance.
+
+The app should not be used as a medical, diagnostic, surveillance, proctoring, hiring, grading, or final decision-making system. Interview Mode currently shares many behavioral signals with Student Mode and is not a fully separate interview analytics model.
+
+If AI-generated code, starter templates, or external examples were used during development, disclose them here before publishing the repository.
+
+---
+
+## Maintainer Contact
+
+Maintainer: Add your name here.
+
+Contact: Add your email, GitHub profile, or preferred contact link here.
+
+Issues and pull requests are welcome through the repository issue tracker.
+
+---
+
 ## Recommended Next Work
 
 * Extract the duplicated camera/model/overlay loop from the student and interview monitors into a shared hook.
