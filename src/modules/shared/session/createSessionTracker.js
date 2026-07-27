@@ -1,3 +1,5 @@
+import { selectDisplayLearnerState } from "../../student/learnerStateAnalysis";
+
 const LEARNER_STATES = [
   "RaiseHand",
   "Agreeing",
@@ -110,12 +112,40 @@ export function createSessionTracker() {
       maxAttention = Math.max(maxAttention, attention);
     }
 
-    if (learner) {
-      for (const key of LEARNER_STATES) {
-        learnerTotals[key] += learner[key] || 0;
-      }
-    }
+  if (learner) {
 
+  const STATE_THRESHOLDS = {
+
+    RaiseHand: 0.65,
+
+    Agreeing: 0.65,
+    Disagreeing: 0.65,
+
+    Thinking: 0.4,
+    Confused: 0.42,
+
+    Bored: 0.38,
+
+    Surprised: 0.55,
+
+    Neutral: 0.35,
+  };
+
+  for (const key of LEARNER_STATES) {
+
+    const score =
+      learner[key] || 0;
+
+    const threshold =
+      STATE_THRESHOLDS[key] || 0.45;
+
+    // only count meaningful states
+    if (score >= threshold) {
+
+      learnerTotals[key] += score;
+    }
+  }
+}
     if (gestureCounts) {
       latestGestureCounts = { ...latestGestureCounts, ...gestureCounts };
     }
@@ -144,9 +174,10 @@ export function createSessionTracker() {
       ]),
     );
 
-    const topLearnerState =
-      Object.entries(learnerAverages).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      "Neutral";
+    const topLearnerState = selectDisplayLearnerState(
+      learnerAverages,
+      averageAttention,
+    );
 
     const report = {
       startedAt,

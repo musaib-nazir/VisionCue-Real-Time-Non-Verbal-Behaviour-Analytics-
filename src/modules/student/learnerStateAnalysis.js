@@ -1,5 +1,12 @@
 import { clamp, bs, pushTimedValue } from "./attentionTracking";
-import { dist ,isValidHand} from "./raiseHandDetection";
+import { dist,isValidHand } from "./raiseHandDetection";
+
+const DISPLAY_STATE_THRESHOLD = 0.45;
+const DISPLAY_STATE_THRESHOLDS = {
+  Bored: 0.25,
+  Thinking: 0.6,
+};
+
 export function exclusiveThinkingBored(thinkingRaw, boredRaw) {
   let thinking = clamp(thinkingRaw);
   let bored = clamp(boredRaw);
@@ -73,9 +80,7 @@ export function learnerStatesFromSignals(
   const nodScore = headPoseAvailable
     ? clamp(recentChangeDeg(runtime, "pitch") / 90)
     : 0;
-  const shakeScore = headPoseAvailable
-    ? clamp(recentChangeDeg(runtime, "yaw") / 90)
-    : 0;
+  const shakeScore = headPoseAvailable ? headShakeScore(runtime) : 0;
   const droop = clamp((1 - eyesOpen - 0.35) / 0.35);
   const yawn = clamp(get("jawOpen"));
   const frown = clamp((get("mouthFrownLeft") + get("mouthFrownRight")) / 2);
@@ -97,16 +102,28 @@ export function learnerStatesFromSignals(
       0.12,
   );
   const avoidEye = clamp((Math.max(gazeHoriz, gazeVert) - 0.15) / 0.85);
+  const latestHeadPose = runtime.headHist[runtime.headHist.length - 1];
+  const headAway = headPoseAvailable && latestHeadPose
+    ? clamp(
+        Math.max(
+          (Math.abs(latestHeadPose.yaw) - 12) / 24,
+          latestHeadPose.pitch < -12
+            ? (Math.abs(latestHeadPose.pitch) - 12) / 22
+            : (latestHeadPose.pitch - 12) / 20,
+        ),
+      )
+    : 0;
   const flatStare =
     clamp((0.008 - gazeVar) / 0.008) * clamp((8 - blinkRate) / 8);
-  const lowAttnPenalty = clamp((1 - attn - 0.35) / 0.5);
+  const lowAttnPenalty = clamp((0.68 - attn) / 0.48);
   const boredComposite = clamp(
-    0.18 * lowAttnPenalty +
-      0.24 * avoidEye +
-      0.2 * flatStare +
-      0.14 * droop +
-      0.16 * yawn +
-      0.12 * Math.max(frown, press) +
+    0.36 * headAway +
+      0.28 * lowAttnPenalty +
+      0.18 * avoidEye +
+      0.12 * flatStare +
+      0.12 * droop +
+      0.14 * yawn +
+      0.1 * Math.max(frown, press) +
       0.08 * coverMouth +
       0.06 * headRest +
       0.06 * eyeRoll,
@@ -119,12 +136,19 @@ export function learnerStatesFromSignals(
   const confusion = clamp(
     confusionCore * (1 - 0.3 * angerProto) * (1 - 0.35 * boredComposite),
   );
+  const attentionGate = clamp((attn - 0.42) / 0.35);
+  const thinkingCue = Math.max(
+    handToChin * 0.9,
+    press * 0.75,
+    headTiltScore * 0.7,
+    clamp(0.55 * press + 0.45 * furrow),
+    clamp(0.5 * handToChin + 0.3 * press + 0.2 * headTiltScore),
+  );
   const thinking = clamp(
-    0.5 * attn +
-      0.2 * (1 - avoidEye) +
-      0.15 * press +
-      0.1 * handToChin +
-      0.05 * headTiltScore,
+    attentionGate *
+      thinkingCue *
+      (1 - 0.35 * boredComposite) *
+      (1 - 0.25 * confusionCore),
   );
   const surprised = clamp(
     get("jawOpen") + 0.5 * ((get("eyeWideLeft") + get("eyeWideRight")) / 2),
@@ -150,14 +174,46 @@ export function pushLearnerStates(runtime, states) {
   }
 }
 export function getAggregatedLearnerStates(runtime) {
+  const now = performance.now();
   const aggregated = {};
   for (const [key, history] of Object.entries(runtime.learnerStateHist)) {
-    aggregated[key] = history.length
-      ? history.reduce((sum, item) => sum + item.score, 0) / history.length
-      : 0;
+    if (!history.length) {
+      aggregated[key] = 0;
+      continue;
+    }
+
+    let weightedSum = 0;
+    let totalWeight = 0;
+    for (const item of history) {
+      const weight = Math.exp(-(now - item.t) / 1600);
+      weightedSum += item.score * weight;
+      totalWeight += weight;
+    }
+
+    aggregated[key] = totalWeight > 0 ? weightedSum / totalWeight : 0;
   }
   return aggregated;
 }
+
+export function selectDisplayLearnerState(learnerStates, attention = null) {
+  const strongestState = Object.entries(learnerStates || {})
+    .filter(([state]) => state !== "Neutral")
+    .sort((a, b) => b[1] - a[1])[0];
+
+  if (
+    strongestState &&
+    strongestState[1] >=
+      (DISPLAY_STATE_THRESHOLDS[strongestState[0]] || DISPLAY_STATE_THRESHOLD)
+  ) {
+    if (strongestState[0] === "Bored") return "Disengaged";
+    return strongestState[0];
+  }
+
+  if (attention !== null && attention >= 0.78) return "Focused";
+  if (attention !== null && attention <= 0.45) return "Low attention";
+  return "Neutral";
+}
+
 export function updateBlinkRate(runtime, blend) {
   const closed = (bs(blend, "eyeBlinkLeft") + bs(blend, "eyeBlinkRight")) / 2;
   const now = performance.now();
@@ -222,31 +278,16 @@ export function mouthCenter(faceLM) {
   return { x: (minx + maxx) / 2, y: miny + (maxy - miny) * 0.7 };
 }
 export function cheekPoints(faceLM) {
-
   if (!faceLM?.length) {
     return [
-      { x: 0.46, y: 0.52 },
-      { x: 0.54, y: 0.52 },
+      { x: 0.42, y: 0.58 },
+      { x: 0.58, y: 0.58 },
     ];
   }
 
   return [
-
-    // left upper inner cheek
-    faceLM[117] ||
-
-    // fallback
-    faceLM[118] ||
-    faceLM[50] ||
-    faceLM[0],
-
-    // right upper inner cheek
-    faceLM[346] ||
-
-    // fallback
-    faceLM[347] ||
-    faceLM[280] ||
-    faceLM[0],
+    faceLM[205] || faceLM[187] || faceLM[0],
+    faceLM[425] || faceLM[411] || faceLM[0],
   ];
 }
 export function recentChangeDeg(runtime, key) {
@@ -258,4 +299,43 @@ export function recentChangeDeg(runtime, key) {
     );
   }
   return total;
+}
+
+function headShakeScore(runtime) {
+  const now = performance.now();
+  const samples = runtime.headHist.filter((item) => now - item.t <= 1400);
+  if (samples.length < 5) return 0;
+
+  const yaws = samples.map((item) => item.yaw);
+  const minYaw = Math.min(...yaws);
+  const maxYaw = Math.max(...yaws);
+  const yawRange = maxYaw - minYaw;
+  const averageYaw =
+    yaws.reduce((total, value) => total + value, 0) / yaws.length;
+
+  if (yawRange < 5 || yawRange > 45 || Math.abs(averageYaw) > 22) {
+    return 0;
+  }
+
+  let reversals = 0;
+  let previousDirection = 0;
+
+  for (let index = 1; index < samples.length; index += 1) {
+    const delta = samples[index].yaw - samples[index - 1].yaw;
+    if (Math.abs(delta) < 0.7) continue;
+
+    const direction = Math.sign(delta);
+    if (previousDirection && direction !== previousDirection) {
+      reversals += 1;
+    }
+    previousDirection = direction;
+  }
+
+  if (reversals < 2) return 0;
+
+  const rangeScore = clamp((yawRange - 5) / 12);
+  const reversalScore = clamp(reversals / 3);
+  const centeredScore = clamp(1 - Math.abs(averageYaw) / 22);
+
+  return clamp(0.65 * rangeScore + 0.25 * reversalScore + 0.1 * centeredScore);
 }

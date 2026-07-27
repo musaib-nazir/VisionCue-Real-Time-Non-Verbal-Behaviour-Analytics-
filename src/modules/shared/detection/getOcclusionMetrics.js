@@ -48,51 +48,108 @@ export function getOcclusionMetrics({
   // -------------------------------
   // 1) HAND → IMPORTANT REGION (MULTI HIT)
   // -------------------------------
-  if (hands && hands.length > 0) {
-    let hitCount = 0;
+  // -------------------------------
+// 1) CRITICAL REGION OCCLUSION
+// -------------------------------
+if (hands && hands.length > 0) {
 
-    for (let hand of hands) {
-      for (let point of hand) {
-        for (let lm of importantPoints) {
-          if (isNear(point, lm, 0.1)) {
-            hitCount++;
-          }
-        }
+  const blockedRegions = new Set();
+
+  for (let hand of hands) {
+
+    for (let point of hand) {
+
+      // LEFT EYE
+      if (
+        isNear(point, landmarks[33], 0.05) ||
+        isNear(point, landmarks[133], 0.05)
+      ) {
+        blockedRegions.add("leftEye");
       }
-    }
 
-    if (hitCount >= 3) {
-      handOnFace = true;
-      occlusionScore += 0.8;
+      // RIGHT EYE
+      if (
+        isNear(point, landmarks[263], 0.05) ||
+        isNear(point, landmarks[362], 0.05)
+      ) {
+        blockedRegions.add("rightEye");
+      }
+
+      // NOSE
+      if (
+        isNear(point, landmarks[1], 0.05)
+      ) {
+        blockedRegions.add("nose");
+      }
+
+      // MOUTH
+      if (
+        isNear(point, landmarks[61], 0.05) ||
+        isNear(point, landmarks[291], 0.05)
+      ) {
+        blockedRegions.add("mouth");
+      }
     }
   }
 
-  // -------------------------------
-  // 2) FACE BOX OVERLAP (BACKUP SIGNAL)
-  // -------------------------------
-  if (hands && hands.length > 0) {
-    let boxHit = false;
-    const margin = 0.05;
+  // --------------------------------
+  // REAL OCCLUSION CONDITION
+  // --------------------------------
 
-    for (let hand of hands) {
-      for (let point of hand) {
-        if (
-          point.x > (minX - margin) &&
-          point.x < (maxX + margin) &&
-          point.y > (minY - margin) &&
-          point.y < (maxY + margin)
-        ) {
-          boxHit = true;
-          break;
-        }
+  const eyesBlocked =
+    blockedRegions.has("leftEye") &&
+    blockedRegions.has("rightEye");
+
+  const noseBlocked =
+    blockedRegions.has("nose");
+
+  const mouthBlocked =
+    blockedRegions.has("mouth");
+
+  // ONLY trigger when analysis becomes difficult
+  if (
+    (eyesBlocked && noseBlocked) ||
+    (eyesBlocked && mouthBlocked)
+  ) {
+
+    handOnFace = true;
+
+    occlusionScore += 0.8;
+  }
+}
+
+//FACE COVERAGE PERCENTAGE
+ if (hands && hands.length > 0) {
+
+  let totalPoints = 0;
+  let pointsInside = 0;
+
+  for (let hand of hands) {
+
+    for (let point of hand) {
+
+      totalPoints++;
+
+      if (
+        point.x > minX &&
+        point.x < maxX &&
+        point.y > minY &&
+        point.y < maxY
+      ) {
+        pointsInside++;
       }
-      if (boxHit) break;
-    }
-
-    if (boxHit) {
-      occlusionScore += 0.4;
     }
   }
+
+  const coverage =
+    pointsInside / totalPoints;
+
+  // only meaningful coverage matters
+  if (coverage > 0.35) {
+
+    occlusionScore += 0.3;
+  }
+}
 
   // -------------------------------
   // 3) LANDMARK COUNT INTEGRITY

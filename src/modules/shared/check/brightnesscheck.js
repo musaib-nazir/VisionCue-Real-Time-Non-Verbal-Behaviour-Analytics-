@@ -9,7 +9,7 @@ export const checkBrightness = (brightness, badLightiningRef) => {
   // ----------------------------
   // TOO DARK
   // ----------------------------
-  if (brightness < 60) {
+  if (brightness < 45) {
     brightnessSeverity = "poor";
     brightnessQualityScore -= 45;
 
@@ -31,7 +31,7 @@ export const checkBrightness = (brightness, badLightiningRef) => {
   // ----------------------------
   // SLIGHTLY DARK
   // ----------------------------
-  } else if (brightness < 90) {
+  } else if (brightness < 70) {
     brightnessSeverity = "acceptable";
     brightnessQualityScore -= 10;
 

@@ -5,6 +5,10 @@ import { facedistancecheck } from "./modules/shared/check/facedistancecheck";
 import { unevenLightingCheck } from "./modules/shared/check/unevenlightingcheck";
 import { occlusionCheck } from "./modules/shared/check/occlusionCheck";
 import { blurCheck } from "./modules/shared/check/blurcheck";
+import {
+  missingFaceCheck,
+  resetMissingFaceCheck,
+} from "./modules/shared/check/missingFaceCheck";
 import { getMultiFaceMetrics } from "./modules/shared/detection/getMultiFaceMetrics";
 import { multiFaceCheck } from "./modules/shared/check/multiFaceCheck";
 //imprt detection:
@@ -62,7 +66,8 @@ import {
   mouthCenter,
   cheekPoints,
   recentChangeDeg,
-  exclusiveThinkingBored
+  exclusiveThinkingBored,
+  selectDisplayLearnerState
 } from "./modules/student/learnerStateAnalysis";
 
 
@@ -174,7 +179,7 @@ function createRuntimeState() {
     emaDown: createEMA(0.5),
     emaRaiseHand: createEMA(0.6),
     emaNod: createEMA(0.65),
-    emaShake: createEMA(0.65),
+    emaShake: createEMA(0.45),
     attnEMA: createEMA(0.85),
     thumbUpLevel: 0,
     thumbDownLevel: 0,
@@ -185,6 +190,15 @@ function createRuntimeState() {
     thumbDownCount: 0,
     raiseHandCount: 0,
     nodAgreeCount: 0,
+    attentionMomentum: 0,//optimise staet tracking
+    pitchDirectionHist: [],
+yawDirectionHist: [],
+nodPhase: "idle",
+nodStartTime: 0,
+lastPitch: 0,
+shakePhase: "idle",
+shakeStartTime: 0,
+lastShakeAt: 0,
     shakeDisagreeCount: 0,
     prevUpActive: false,
     prevDownActive: false,
@@ -429,6 +443,7 @@ export default function StudentAttentionMonitor() {
   const multiFaceRef = useRef(null);
   const blurRef = useRef(null);
 const prevFaceAreaRef = useRef(null);
+  const missingFaceRef = useRef(null);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
   const runtimeRef = useRef(createRuntimeState());
@@ -509,9 +524,7 @@ const prevFaceAreaRef = useRef(null);
       Agreeing: exclusive.agree,
       Disagreeing: exclusive.disagree,
     };
-    const topEmotion =
-      Object.entries(nextLearner).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      "Neutral";
+    const topEmotion = selectDisplayLearnerState(nextLearner, attention);
     setUi((current) => ({
       ...current,
       attention,
@@ -580,6 +593,7 @@ const prevFaceAreaRef = useRef(null);
     const face = faceLandmarker.detectForVideo(video, ts);
     const hands = handLandmarker.detectForVideo(video, ts);
     if (face?.faceLandmarks?.length) {
+      resetMissingFaceCheck(missingFaceRef);
       const landmarks = face.faceLandmarks[0];
       const canvasWidth = processCanvas.width;
       const canvasHeight = processCanvas.height;
@@ -809,8 +823,13 @@ if (shouldBlockAnalysis)
   return;
 }
       const runtime = runtimeRef.current;
-      const { up, down } = detectThumbs(hands);
-      const raiseHandRaw = detectRaiseHand(hands);
+     const { up, down } =
+  detectThumbs(
+    hands,
+    face.faceLandmarks[0]
+  );
+      const raiseHandRaw = detectRaiseHand(   hands,
+    face.faceLandmarks[0]);
       const exclusive = exclusiveHandGestures(
         runtime.emaRaiseHand(raiseHandRaw),
         runtime.emaUp(up),
@@ -831,7 +850,22 @@ if (shouldBlockAnalysis)
       runtime.prevRaiseHandActive = raiseActive;
       const attnRaw = computeAttention(face.faceBlendshapes, yawDeg, pitchDeg);
       pushAttention(runtime, attnRaw);
-      const attn = runtime.attnEMA(getAggregatedAttention(runtime, attnRaw));
+   const rawAttention =
+  runtime.attnEMA(
+    getAggregatedAttention(
+      runtime,
+      attnRaw
+    )
+  );
+
+runtime.attentionMomentum =
+  0.85 *
+    runtime.attentionMomentum +
+  0.15 *
+    rawAttention;
+
+const attn =
+  runtime.attentionMomentum;
       const learnerRaw = learnerStatesFromSignals(
         runtime,
         face.faceBlendshapes,
@@ -845,7 +879,7 @@ if (shouldBlockAnalysis)
       if (nodActive && !runtime.prevNodActive) runtime.nodAgreeCount += 1;
       runtime.prevNodActive = nodActive;
       runtime.shakeLevel = runtime.emaShake(learnerRaw.Disagreeing || 0);
-      const shakeActive = runtime.shakeLevel >= 0.45;
+      const shakeActive = runtime.shakeLevel >= 0.35;
       if (shakeActive && !runtime.prevShakeActive)
         runtime.shakeDisagreeCount += 1;
       runtime.prevShakeActive = shakeActive;
@@ -867,6 +901,18 @@ if (shouldBlockAnalysis)
     } else {
       const ctx2 = overlay.getContext("2d");
       ctx2.clearRect(0, 0, overlay.width, overlay.height);
+      const missingFace = missingFaceCheck(missingFaceRef);
+      setUi((current) => ({
+        ...current,
+        occlusionStatus: missingFace.status,
+        occlusionSuggestion: missingFace.suggestion,
+        showOcclusionPopup: missingFace.active,
+        activePopup: missingFace.activePopup,
+        shouldBlockAnalysis: missingFace.active,
+        blockingIssues: missingFace.active ? ["Face blocked or not visible"] : [],
+        overallQualityScore: missingFace.active ? 0 : current.overallQualityScore,
+        overallSeverity: missingFace.active ? "poor" : current.overallSeverity,
+      }));
       updateUi(runtimeRef.current.attnEMA(0), INITIAL_LEARNER);
     }
 
@@ -1178,7 +1224,7 @@ if (shouldBlockAnalysis)
                 level={ui.learner.Disagreeing}
                 active={ui.gestureLevels.disagree}
               />
-              <StateRow label="Focus" level={ui.learner.Thinking} />
+              <StateRow label="Thinking" level={ui.learner.Thinking} />
               <StateRow label="Disengaged" level={ui.learner.Bored} />
               <StateRow label="Confused" level={ui.learner.Confused} />
             </div>

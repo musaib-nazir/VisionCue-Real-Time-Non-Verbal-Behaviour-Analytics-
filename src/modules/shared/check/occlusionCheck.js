@@ -6,6 +6,8 @@ export function occlusionCheck(metrics, ref) {
     ref.current = {
       scoreHistory: [],
       active: false,
+      occlusionFrames: 0,
+  clearFrames: 0
     };
   }
 
@@ -21,11 +23,36 @@ export function occlusionCheck(metrics, ref) {
     memory.scoreHistory.reduce((total, value) => total + value, 0) /
     memory.scoreHistory.length;
 
-  if (avgScore >= 0.6) {
-    memory.active = true;
-  } else if (avgScore <= 0.3) {
-    memory.active = false;
-  }
+ if (avgScore >= 0.6) {
+
+  memory.occlusionFrames++;
+
+} else {
+
+  memory.occlusionFrames = 0;
+}
+
+// recovery delay
+if (avgScore <= 0.3) {
+
+  memory.clearFrames++;
+
+} else {
+
+  memory.clearFrames = 0;
+}
+
+// activate after sustained occlusion
+if (memory.occlusionFrames >= 15) {
+
+  memory.active = true;
+}
+
+// deactivate after stable recovery
+if (memory.clearFrames >= 10) {
+
+  memory.active = false;
+}
 
   let occlusionStatus = "Face clearly visible - OK";
   let occlusionSuggestion = "";

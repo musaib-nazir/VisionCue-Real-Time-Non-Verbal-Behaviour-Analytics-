@@ -23,17 +23,21 @@ export function computeAttention(
   const gazeUp = (bs(blend, "eyeLookUpLeft") + bs(blend, "eyeLookUpRight")) / 2;
   const gazeDown =
     (bs(blend, "eyeLookDownLeft") + bs(blend, "eyeLookDownRight")) / 2;
-  const gazeUpPenalty = clamp((gazeUp - 0.05) / 0.3);
-  const gazeDownPenalty = clamp((gazeDown - 0.25) / 0.5);
-  const gazeHorizPenalty = clamp((gazeHoriz - 0.08) / 0.35);
-  const gazePenalty = Math.max(
-    gazeUpPenalty * 1.5,
-    gazeHorizPenalty * 1.3,
-    gazeDownPenalty * 0.6,
-  );
+  const gazeUpPenalty = clamp((gazeUp - 0.08) / 0.25);
+  const gazeDownPenalty = clamp((gazeDown - 0.5) / 0.3);
+  const gazeHorizPenalty = clamp((gazeHoriz - 0.1) / 0.25);
+const gazePenalty =
+  0.45 * gazeHorizPenalty +
+  0.35 * gazeUpPenalty +
+  0.2 * gazeDownPenalty;
   const eyesOnScreen = clamp(1 - gazePenalty);
   const headScore = 1 - headOrientationPenalty(yawDeg, pitchDeg);
-  return clamp(0.7 * eyesOnScreen + 0.15 * headScore + 0.15 * clamp(eyesOpen));
+  const baseAttention =
+    0.55 * eyesOnScreen +
+    0.25 * clamp(eyesOpen) +
+    0.2 * headScore;
+
+  return clamp(baseAttention * (0.55 + 0.45 * headScore));
 }
 export function pushTimedValue(list, item, cutoffMs) {
   list.push(item);
@@ -69,12 +73,12 @@ export function getAggregatedAttention(runtime, currentScore) {
 }
 
 export function headOrientationPenalty(yawDeg = 0, pitchDeg = 0) {
-  const yawSoft = 8;
-  const yawHard = 30;
-  const pitchDown = 5;
-  const pitchDownSoft = 20;
-  const pitchUpSoft = 8;
-  const pitchUpHard = 25;
+  const yawSoft = 15;
+  const yawHard = 38;
+  const pitchDown = 15;
+  const pitchDownSoft = 35;
+  const pitchUpSoft = 14;
+  const pitchUpHard = 32;
   const pyaw = clamp((Math.abs(yawDeg) - yawSoft) / (yawHard - yawSoft));
   let ppitch = 0;
   if (pitchDeg < -pitchDown) {
@@ -84,7 +88,10 @@ export function headOrientationPenalty(yawDeg = 0, pitchDeg = 0) {
   } else if (pitchDeg > pitchUpSoft) {
     ppitch = clamp((pitchDeg - pitchUpSoft) / (pitchUpHard - pitchUpSoft));
   }
-  return Math.max(pyaw, ppitch);
+ return clamp(
+  0.65 * pyaw +
+  0.35 * ppitch
+);
 }
 
 

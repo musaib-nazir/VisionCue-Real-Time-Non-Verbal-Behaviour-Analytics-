@@ -5,6 +5,10 @@ import { facedistancecheck } from "./modules/shared/check/facedistancecheck";
 import { unevenLightingCheck } from "./modules/shared/check/unevenlightingcheck";
 import { occlusionCheck } from "./modules/shared/check/occlusionCheck";
 import { blurCheck } from "./modules/shared/check/blurcheck";
+import {
+  missingFaceCheck,
+  resetMissingFaceCheck,
+} from "./modules/shared/check/missingFaceCheck";
 import { videoQualityEngine } from "./modules/shared/Engine/videoQualityEngine";
 import { getMultiFaceMetrics } from "./modules/shared/detection/getMultiFaceMetrics";
 import { multiFaceCheck } from "./modules/shared/check/multiFaceCheck";
@@ -51,7 +55,8 @@ import {
   mouthCenter,
   cheekPoints,
   recentChangeDeg,
-  exclusiveThinkingBored
+  exclusiveThinkingBored,
+  selectDisplayLearnerState
 } from "./modules/student/learnerStateAnalysis";
 
 
@@ -407,6 +412,7 @@ export default function InterviewMonitor() {
   const multiFaceRef = useRef(null);
   const blurRef = useRef(null);
 const prevFaceAreaRef = useRef(null);
+  const missingFaceRef = useRef(null);
   const overlayVisibleRef = useRef(true);
   const modelsRef = useRef({ faceLandmarker: null, handLandmarker: null });
   const runtimeRef = useRef(createRuntimeState());
@@ -485,9 +491,7 @@ const prevFaceAreaRef = useRef(null);
       Agreeing: exclusive.agree,
       Disagreeing: exclusive.disagree,
     };
-    const topEmotion =
-      Object.entries(nextLearner).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      "Neutral";
+    const topEmotion = selectDisplayLearnerState(nextLearner, attention);
     setUi((current) => ({
       ...current,
       attention,
@@ -556,6 +560,7 @@ const prevFaceAreaRef = useRef(null);
     const face = faceLandmarker.detectForVideo(video, ts);
     const hands = handLandmarker.detectForVideo(video, ts);
     if (face?.faceLandmarks?.length) {
+      resetMissingFaceCheck(missingFaceRef);
       const landmarks = face.faceLandmarks[0];
       const canvasWidth = processCanvas.width;
       const canvasHeight = processCanvas.height;
@@ -777,6 +782,18 @@ showOcclusionPopup: showOcclusionPopup,
     } else {
       const ctx2 = overlay.getContext("2d");
       ctx2.clearRect(0, 0, overlay.width, overlay.height);
+      const missingFace = missingFaceCheck(missingFaceRef);
+      setUi((current) => ({
+        ...current,
+        occlusionStatus: missingFace.status,
+        occlusionSuggestion: missingFace.suggestion,
+        showOcclusionPopup: missingFace.active,
+        activePopup: missingFace.activePopup,
+        shouldBlockAnalysis: missingFace.active,
+        blockingIssues: missingFace.active ? ["Face blocked or not visible"] : [],
+        overallQualityScore: missingFace.active ? 0 : current.overallQualityScore,
+        overallSeverity: missingFace.active ? "poor" : current.overallSeverity,
+      }));
       updateUi(runtimeRef.current.attnEMA(0), INITIAL_LEARNER);
     }
 
@@ -987,7 +1004,7 @@ showOcclusionPopup: showOcclusionPopup,
                 level={ui.learner.Disagreeing}
                 active={ui.gestureLevels.disagree}
               />
-              <StateRow label="Focus" level={ui.learner.Thinking} />
+              <StateRow label="Thinking" level={ui.learner.Thinking} />
               <StateRow label="Disengaged" level={ui.learner.Bored} />
               <StateRow label="Confused" level={ui.learner.Confused} />
             </div>
