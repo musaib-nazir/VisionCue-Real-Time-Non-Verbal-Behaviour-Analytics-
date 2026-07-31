@@ -16,6 +16,7 @@ const QUALITY_ISSUES = [
   "blur",
   "faceDistance",
   "occlusion",
+  "missingFace",
   "multipleFaces",
 ];
 
@@ -44,6 +45,10 @@ function createRecommendations(report) {
 
   if (report.qualityIssues.occlusion > 0) {
     recommendations.push("Keep the full face visible during analysis.");
+  }
+
+  if (report.qualityIssues.missingFace > 0) {
+    recommendations.push("Keep your face in camera view during analysis.");
   }
 
   if (report.qualityIssues.multipleFaces > 0) {

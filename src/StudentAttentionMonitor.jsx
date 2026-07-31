@@ -123,6 +123,9 @@ lightingBalance:"checking lighting balance ",
 occlusionStatus: "Checking occlusion...",
 occlusionSuggestion: "Checking if your face is fully visible...",
 showOcclusionPopup: false,
+missingFaceStatus: "Checking face detection...",
+missingFaceSuggestion: "Checking if your face is visible...",
+showMissingFacePopup: false,
   blurScore: 0,
   blurStatus: "Checking focus...",
   blurSuggestion: "Checking if the camera image is sharp...",
@@ -741,6 +744,7 @@ const qualityIssueFlags = {
   blur: blurSeverity === "poor",
   faceDistance: showFaceDistancePopup,
   occlusion: occlusionSeverity === "poor",
+  missingFace: false,
   multipleFaces: showMultiFacePopup,
 };
 
@@ -782,6 +786,9 @@ const qualityIssueFlags = {
 occlusionStatus: occlusionStatus,
 occlusionSuggestion: occlusionSuggestion,
 showOcclusionPopup: showOcclusionPopup,
+missingFaceStatus: "Face detected - OK",
+missingFaceSuggestion: "",
+showMissingFacePopup: false,
         blurScore: Math.round(blurScore),
         blurStatus: blurStatus,
         blurSuggestion: blurSuggestion,
@@ -901,18 +908,33 @@ const attn =
     } else {
       const ctx2 = overlay.getContext("2d");
       ctx2.clearRect(0, 0, overlay.width, overlay.height);
-      const missingFace = missingFaceCheck(missingFaceRef);
+      const missingFace = missingFaceCheck(missingFaceRef, {
+        personDetected: hands?.landmarks?.length > 0,
+      });
+      const missingFaceQuality = {
+        shouldBlockAnalysis: missingFace.active,
+        blockingIssues: missingFace.active ? ["Face missing"] : [],
+        activePopup: missingFace.activePopup,
+      };
       setUi((current) => ({
         ...current,
-        occlusionStatus: missingFace.status,
-        occlusionSuggestion: missingFace.suggestion,
-        showOcclusionPopup: missingFace.active,
+        missingFaceStatus: missingFace.status,
+        missingFaceSuggestion: missingFace.suggestion,
+        showMissingFacePopup: missingFace.active,
         activePopup: missingFace.activePopup,
         shouldBlockAnalysis: missingFace.active,
-        blockingIssues: missingFace.active ? ["Face blocked or not visible"] : [],
+        blockingIssues: missingFaceQuality.blockingIssues,
         overallQualityScore: missingFace.active ? 0 : current.overallQualityScore,
         overallSeverity: missingFace.active ? "poor" : current.overallSeverity,
       }));
+      if (missingFace.active) {
+        sessionRef.current.recordFrame({
+          quality: missingFaceQuality,
+          qualityIssueFlags: {
+            missingFace: true,
+          },
+        });
+      }
       updateUi(runtimeRef.current.attnEMA(0), INITIAL_LEARNER);
     }
 
@@ -985,7 +1007,7 @@ const attn =
   return (
     <div className="shell">
       <header className="topbar">
-        <h1>Attention & Emotion Monitor</h1>
+        <h1>Vision Based Non Verbal Behavioural Analytical Engine</h1>
         <div className="row">
           <button className="btn primary" onClick={start}>
             Start camera
@@ -1170,6 +1192,10 @@ const attn =
   <span className="muted">Occlusion</span>
   <b>{ui.occlusionStatus}</b>
 </div>
+<div className="kv">
+  <span className="muted">Face detection</span>
+  <b>{ui.missingFaceStatus}</b>
+</div>
           <div className="kv">
             <span className="muted">Focus</span>
             <b>{ui.blurStatus}</b>
@@ -1265,6 +1291,72 @@ function formatTime(timestamp) {
   });
 }
 
+function formatDateTime(timestamp) {
+  return new Date(timestamp).toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function createReportText(report) {
+  const totalQualityIssues = Object.values(report.qualityIssues).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+
+  return [
+    "Session Report",
+    `Generated: ${formatDateTime(Date.now())}`,
+    "",
+    "Summary",
+    `Started: ${formatDateTime(report.startedAt)}`,
+    `Ended: ${formatDateTime(report.endedAt)}`,
+    `Duration: ${report.durationSeconds}s`,
+    `Average attention: ${formatPercent(report.averageAttention)}`,
+    `Lowest attention: ${formatPercent(report.minAttention)}`,
+    `Highest attention: ${formatPercent(report.maxAttention)}`,
+    `Top state: ${report.topLearnerState}`,
+    `Blocked time: ${report.blockedSeconds}s`,
+    `Quality issue samples: ${totalQualityIssues}`,
+    "",
+    "Gestures",
+    `Raise hand: ${report.gestureCounts.raiseHand}`,
+    `Agreeing: ${report.gestureCounts.agree}`,
+    `Disagreeing: ${report.gestureCounts.disagree}`,
+    "",
+    "Quality Issues",
+    `Poor lighting: ${report.qualityIssues.poorLighting}`,
+    `Blur: ${report.qualityIssues.blur}`,
+    `Face distance: ${report.qualityIssues.faceDistance}`,
+    `Occlusion: ${report.qualityIssues.occlusion}`,
+    `Missing face: ${report.qualityIssues.missingFace}`,
+    `Multiple faces: ${report.qualityIssues.multipleFaces}`,
+    "",
+    "Recommendations",
+    ...report.recommendations.map((item) => `- ${item}`),
+  ].join("\n");
+}
+
+function downloadReport(report) {
+  const startedAt = new Date(report.startedAt).toISOString().slice(0, 19);
+  const filename = `session-report-${startedAt.replace(/[:T]/g, "-")}.txt`;
+  const blob = new Blob([createReportText(report)], {
+    type: "text/plain;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 function SessionReport({ report }) {
   const totalQualityIssues = Object.values(report.qualityIssues).reduce(
     (sum, count) => sum + count,
@@ -1280,9 +1372,18 @@ function SessionReport({ report }) {
             {formatTime(report.startedAt)} - {formatTime(report.endedAt)}
           </p>
         </div>
-        <div className="reportScore">
-          {formatPercent(report.averageAttention)}
-          <span className="muted tiny">avg attention</span>
+        <div className="sessionReportActions">
+          <button
+            type="button"
+            className="btn"
+            onClick={() => downloadReport(report)}
+          >
+            Download report
+          </button>
+          <div className="reportScore">
+            {formatPercent(report.averageAttention)}
+            <span className="muted tiny">avg attention</span>
+          </div>
         </div>
       </div>
 
@@ -1309,6 +1410,7 @@ function SessionReport({ report }) {
           <ReportRow label="Blur" value={report.qualityIssues.blur} />
           <ReportRow label="Face distance" value={report.qualityIssues.faceDistance} />
           <ReportRow label="Occlusion" value={report.qualityIssues.occlusion} />
+          <ReportRow label="Missing face" value={report.qualityIssues.missingFace} />
           <ReportRow label="Multiple faces" value={report.qualityIssues.multipleFaces} />
         </div>
 
