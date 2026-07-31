@@ -112,6 +112,9 @@ const INITIAL_UI = {
 occlusionStatus: "Checking occlusion...",
 occlusionSuggestion: "Checking if your face is fully visible...",
 showOcclusionPopup: false,
+missingFaceStatus: "Checking face detection...",
+missingFaceSuggestion: "Checking if your face is visible...",
+showMissingFacePopup: false,
   blurScore: 0,
   blurStatus: "Checking focus...",
   blurSuggestion: "Checking if the camera image is sharp...",
@@ -723,6 +726,9 @@ const quality = videoQualityEngine({
 occlusionStatus: occlusionStatus,
 occlusionSuggestion: occlusionSuggestion,
 showOcclusionPopup: showOcclusionPopup,
+missingFaceStatus: "Face detected - OK",
+missingFaceSuggestion: "",
+showMissingFacePopup: false,
         blurScore: Math.round(blurScore),
         blurStatus: blurStatus,
         blurSuggestion: blurSuggestion,
@@ -782,15 +788,17 @@ showOcclusionPopup: showOcclusionPopup,
     } else {
       const ctx2 = overlay.getContext("2d");
       ctx2.clearRect(0, 0, overlay.width, overlay.height);
-      const missingFace = missingFaceCheck(missingFaceRef);
+      const missingFace = missingFaceCheck(missingFaceRef, {
+        personDetected: hands?.landmarks?.length > 0,
+      });
       setUi((current) => ({
         ...current,
-        occlusionStatus: missingFace.status,
-        occlusionSuggestion: missingFace.suggestion,
-        showOcclusionPopup: missingFace.active,
+        missingFaceStatus: missingFace.status,
+        missingFaceSuggestion: missingFace.suggestion,
+        showMissingFacePopup: missingFace.active,
         activePopup: missingFace.activePopup,
         shouldBlockAnalysis: missingFace.active,
-        blockingIssues: missingFace.active ? ["Face blocked or not visible"] : [],
+        blockingIssues: missingFace.active ? ["Face missing"] : [],
         overallQualityScore: missingFace.active ? 0 : current.overallQualityScore,
         overallSeverity: missingFace.active ? "poor" : current.overallSeverity,
       }));
@@ -860,7 +868,7 @@ showOcclusionPopup: showOcclusionPopup,
   return (
     <div className="shell">
       <header className="topbar">
-        <h1>Attention & Emotion Monitor</h1>
+        <h1>Vision Based Non Verbal Behavioural Analytical Engine</h1>
         <div className="row">
           <button className="btn primary" onClick={start}>
             Start camera
@@ -963,6 +971,10 @@ showOcclusionPopup: showOcclusionPopup,
 <div className="kv">
   <span className="muted">Occlusion</span>
   <b>{ui.occlusionStatus}</b>
+</div>
+<div className="kv">
+  <span className="muted">Face detection</span>
+  <b>{ui.missingFaceStatus}</b>
 </div>
           <div className="kv">
             <span className="muted">Focus</span>

@@ -217,6 +217,12 @@ select {
   margin: 0 0 4px;
 }
 
+.sessionReportActions {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .reportScore {
   display: flex;
   flex-direction: column;
@@ -345,6 +351,11 @@ footer {
 
   .sessionReportHeader {
     flex-direction: column;
+  }
+
+  .sessionReportActions {
+    align-items: flex-start;
+    flex-direction: column-reverse;
   }
 
   .reportScore {

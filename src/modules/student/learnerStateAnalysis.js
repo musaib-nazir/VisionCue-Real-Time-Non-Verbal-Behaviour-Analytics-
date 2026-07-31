@@ -303,8 +303,8 @@ export function recentChangeDeg(runtime, key) {
 
 function headShakeScore(runtime) {
   const now = performance.now();
-  const samples = runtime.headHist.filter((item) => now - item.t <= 1400);
-  if (samples.length < 5) return 0;
+  const samples = runtime.headHist.filter((item) => now - item.t <= 1200);
+  if (samples.length < 7) return 0;
 
   const yaws = samples.map((item) => item.yaw);
   const minYaw = Math.min(...yaws);
@@ -313,16 +313,31 @@ function headShakeScore(runtime) {
   const averageYaw =
     yaws.reduce((total, value) => total + value, 0) / yaws.length;
 
-  if (yawRange < 5 || yawRange > 45 || Math.abs(averageYaw) > 22) {
+  if (yawRange < 10 || yawRange > 36 || Math.abs(averageYaw) > 16) {
     return 0;
   }
 
+  const duration = samples[samples.length - 1].t - samples[0].t;
+  if (duration < 450) return 0;
+
+  const centeredYaws = yaws.map((yaw) => yaw - averageYaw);
+  const leftExcursion = Math.abs(Math.min(...centeredYaws));
+  const rightExcursion = Math.max(...centeredYaws);
+  if (leftExcursion < 4 || rightExcursion < 4) return 0;
+
   let reversals = 0;
   let previousDirection = 0;
+  let totalYawMotion = 0;
+  let totalPitchMotion = 0;
+  const sideVisits = [];
 
   for (let index = 1; index < samples.length; index += 1) {
     const delta = samples[index].yaw - samples[index - 1].yaw;
-    if (Math.abs(delta) < 0.7) continue;
+    totalYawMotion += Math.abs(delta);
+    totalPitchMotion += Math.abs(
+      samples[index].pitch - samples[index - 1].pitch,
+    );
+    if (Math.abs(delta) < 1) continue;
 
     const direction = Math.sign(delta);
     if (previousDirection && direction !== previousDirection) {
@@ -331,11 +346,30 @@ function headShakeScore(runtime) {
     previousDirection = direction;
   }
 
-  if (reversals < 2) return 0;
+  for (const yaw of centeredYaws) {
+    if (Math.abs(yaw) < 2.8) continue;
+    const side = Math.sign(yaw);
+    const latest = sideVisits[sideVisits.length - 1];
+    if (latest?.side === side) {
+      latest.peak = Math.max(latest.peak, Math.abs(yaw));
+    } else {
+      sideVisits.push({ side, peak: Math.abs(yaw) });
+    }
+  }
 
-  const rangeScore = clamp((yawRange - 5) / 12);
-  const reversalScore = clamp(reversals / 3);
-  const centeredScore = clamp(1 - Math.abs(averageYaw) / 22);
+  const strongSideVisits = sideVisits.filter((visit) => visit.peak >= 4);
+  if (reversals < 1 || strongSideVisits.length < 3) return 0;
+  if (totalPitchMotion > totalYawMotion * 0.85) return 0;
 
-  return clamp(0.65 * rangeScore + 0.25 * reversalScore + 0.1 * centeredScore);
+  const rangeScore = clamp((yawRange - 10) / 14);
+  const reversalScore = clamp(reversals / 2);
+  const sideScore = clamp((strongSideVisits.length - 2) / 2);
+  const centeredScore = clamp(1 - Math.abs(averageYaw) / 16);
+
+  return clamp(
+    0.45 * rangeScore +
+      0.25 * reversalScore +
+      0.2 * sideScore +
+      0.1 * centeredScore,
+  );
 }
